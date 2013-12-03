@@ -254,53 +254,13 @@
   top: -8.1rem;
 }
 
-#lockscreen-area-slide #lockscreen-slide-track .lockscreen-slide-center {
-  width: 22rem;
-}
-
-@media (min-width: 768px) {
-  #lockscreen-area-slide #lockscreen-slide-track .lockscreen-slide-center {
-    width: 35rem;
-  }
-}
-
-#lockscreen-area-slide #lockscreen-slide-track .lockscreen-icon {
-  border-color: rgba(255, 255, 255, 0.4) !important;
-}
-
 #lockscreen-area-slide .lockscreen-icon {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: none;
   -moz-box-sizing: border-box;
   border: 0.2rem solid rgba(255, 255, 255, 0.8);
 }
 
-#lockscreen-slide-track .lockscreen-slide-left.lockscreen-icon {
-  /* half-circle toward left */
-  border-radius: 6rem 0 0 6rem;
-  border-right: none;
-  display: inline-block;
-
-  /* to move it while sliding */
-  position: relative;
-  height: 6rem;
-  width: 3rem;
-}
-
-#lockscreen-slide-handle .lockscreen-slide-left.lockscreen-icon {
-  /* half-circle toward left */
-  border-radius:5.6rem 0 0 5.6rem;
-  border-right: none;
-  display: inline-block;
-
-  /* to move it while sliding */
-  position: relative;
-  height: 5.6rem;
-  width: 2.8rem;
-}
-
 .lockscreen-slide-left.lockscreen-icon > span {
-  background: url(/style/lockscreen/images/larrow.png) no-repeat top left;
-  background-size: 1rem 2rem;
 
   /* float to prevent its parent got wrong place */
   float: left;
@@ -324,7 +284,7 @@
   border-radius: 0rem;
 
   /* workaround for splitting circle */
-  margin-left: -0.3rem;
+  margin-left: -0.25rem;
   margin-right: -0.3rem;
 
   /* to move and scale it while sliding */
@@ -333,28 +293,15 @@
 }
 
 #lockscreen-slide-handle .lockscreen-slide-center.lockscreen-icon {
+  border: none;
+}
+
+#lockscreen-slide-handle .lockscreen-slide-center.lockscreen-icon {
   height: 5.6rem;
 }
 
-#lockscreen-area-slide .touched {
-  border-color: #00aacc;
-  background-color:  #00aacc;
-}
-
-#lockscreen-slide-track .lockscreen-slide-right.lockscreen-icon {
-  border-left: none;
-
-  /* half-circle toward right */
-  border-radius: 0 6rem 6rem 0;
-  display: inline-block;
-  height: 6rem;
-
-  /* to move it while sliding */
-  position: relative;
-  width: 3rem;
-}
-
 #lockscreen-slide-handle .lockscreen-slide-right.lockscreen-icon {
+  border: none;
   border-left: none;
 
   /* half-circle toward right */
@@ -368,8 +315,6 @@
 }
 
 .lockscreen-slide-right.lockscreen-icon > span {
-  background: url(/style/lockscreen/images/larrow.png) no-repeat top left;
-  background-size: 1rem 2rem;
 
   /* float to prevent its parent got wrong place */
   float: right;
@@ -445,8 +390,7 @@ button::-moz-focus-inner {
 }
 
 #lockscreen-area-unlock {
-  /* Otherwise it will be overlayed by the track. */
-  z-index: 1;
+  z-index: 16;
   pointer-events: auto;
 }
 
@@ -464,8 +408,7 @@ button::-moz-focus-inner {
 }
 
 #lockscreen-area-camera {
-  /* Otherwise it will be overlayed by the track. */
-  z-index: 1;
+  z-index: 16;
   pointer-events: auto;
 }
 
@@ -491,11 +434,13 @@ button::-moz-focus-inner {
 }
 
 #lockscreen-panel-passcode {
-  z-index: 2;
+  /* > camera, unlock icons > canvas */
+  z-index: 32;
 }
 
 #lockscreen-panel-emergency-call {
-  z-index: 2;
+  /* > camera, unlock icons > canvas */
+  z-index: 32;
 }
 
 #lockscreen-passcode-code {
@@ -796,4 +741,11 @@ button::-moz-focus-inner {
 
 .elastic #lockscreen-icon-container {
   animation: lockscreen-elastic 2.5s 1;
+}
+
+#lockscreen-canvas-wrapper {
+  position: absolute;
+  bottom: 0.75rem;
+  z-index: 8;
+  width: 100%;
 }

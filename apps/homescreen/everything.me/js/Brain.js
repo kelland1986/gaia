@@ -660,6 +660,14 @@
       if (Evme.Collection.isOpen()) {
         if (data.app.cfg.isStatic === true) {
           Evme.Collection.toggleEditMode(true);
+          LazyLoader.load([
+            'style/dragdrop.css',
+            'everything.me/js/helpers/dndmanager.js'], function onload() {
+              var el = data.el;
+              Evme.dndManager.start(el, data.evt, function onRearrage(idx) {
+                  Evme.Collection.moveApp(el.dataset.id, idx);
+              });
+          });
         } else if (data.app.type === Evme.RESULT_TYPE.CLOUD) {
           Evme.Collection.toggleEditMode(false);
           openCloudAppMenu(data);
@@ -930,6 +938,8 @@
       Evme.ConnectionMessage.hide();
 
       currentResultsManager = Evme.SearchResults;
+
+      Evme.dndManager && Evme.dndManager.stop();
     };
 
     // cancel the current outgoing collection requests
@@ -1411,8 +1421,21 @@
 
     this.getApps = function getApps(options) {
       var query = options.query,
-        type = options.type,
-        source = options.source,
+          source = options.source;
+
+      // always perfom local search
+      Evme.SearchResults.onNewQuery({
+        'query': query
+      });
+
+      // exit if search triggered by typing and this feature is disabled
+      if (source === SEARCH_SOURCES.TYPING &&
+          !Evme.Features.isOn('typingApps')) {
+        return;
+      }
+
+      // perform search
+      var type = options.type,
         index = options.index,
         reloadingIcons = options.reloadingIcons,
         exact = options.exact || false,
@@ -1465,11 +1488,6 @@
 
       // set timer for progress indicator
       Evme.SearchResults.APIData.onRequestSent();
-
-      // triggers installed provider search
-      Evme.SearchResults.onNewQuery({
-        'query': Evme.Searchbar.getValue()
-      });
 
       if (!exact && query.length < MINIMUM_LETTERS_TO_SEARCH) {
         Searcher.cancelRequests();
@@ -1823,8 +1841,9 @@
 
         if (Evme.Features.isOn('typingApps')) {
           Evme.Features.startTimingFeature('typingApps', Evme.Features.ENABLE);
-          Searcher.getApps(options);
         }
+
+        Searcher.getApps(options);
 
         if (Evme.Features.isOn('typingImage')) {
           Evme.Features.startTimingFeature('typingImage', Evme.Features.ENABLE);
@@ -1842,14 +1861,14 @@
         'source': source
       };
 
-      if (Evme.Features.isOn('typingApps')) {
-        requestSearch && requestSearch.abort && requestSearch.abort();
-        window.clearTimeout(timeoutSearchWhileTyping);
-        timeoutSearchWhileTyping = window.setTimeout(function onTimeout() {
+      requestSearch && requestSearch.abort && requestSearch.abort();
+      window.clearTimeout(timeoutSearchWhileTyping);
+      timeoutSearchWhileTyping = window.setTimeout(function onTimeout() {
+        if (Evme.Features.isOn('typingApps')) {
           Evme.Features.startTimingFeature('typingApps', Evme.Features.DISABLE);
-          Searcher.getApps(searchOptions);
-        }, TIMEOUT_BEFORE_RUNNING_APPS_SEARCH);
-      }
+        }
+        Searcher.getApps(searchOptions);
+      }, TIMEOUT_BEFORE_RUNNING_APPS_SEARCH);
 
       if (Evme.Features.isOn('typingImage')) {
         requestImage && requestImage.abort && requestImage.abort();
