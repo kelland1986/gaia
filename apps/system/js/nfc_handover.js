@@ -471,11 +471,9 @@ function HandoverManager() {
   this.sendFileRequest = null;
 
   /*
-   * handoverInProgress is set to true in response to an incoming
-   * Handover Request. The flag is queried by isHandoverInProgress()
-   * and used in the BT file transfer app to recognize a handover.
+   * remoteMAC is the MAC address of the remote device during a file transfer.
    */
-  this.handoverInProgress = false;
+  this.remoteMAC = null;
 
   /*
    * settingsNotified is used to prevent triggering Settings multiple times.
@@ -558,10 +556,13 @@ function HandoverManager() {
   }
 
   function doFileTransfer(mac) {
-    if (self.fileTransfer == null) {
+    debug('doFileTransfer');
+    if (self.sendFileRequest == null) {
       // Nothing to do
+      debug('No pending sendFileRequest');
       return;
     }
+    self.remoteMAC = mac;
     var onsuccess = function() {
       var blob = self.sendFileRequest.blob;
       var sendingFilesSchedule = {
@@ -571,10 +572,12 @@ function HandoverManager() {
         numUnsuccessful: 0
       };
       BluetoothTransfer.onFilesSending({detail: sendingFilesSchedule});
-      self.defaultAdapter.sendFile(blob, mac);
+      debug('Send blob to ' + self.remoteMAC);
+      self.defaultAdapter.sendFile(blob, self.remoteMAC);
     };
     var onerror = function() {
-      self.fileTransfer = null;
+      self.sendFileRequest = null;
+      self.remoteMAC = null;
     };
     doPairing(mac, onsuccess, onerror);
   }
@@ -586,7 +589,7 @@ function HandoverManager() {
       return;
     }
 
-    self.handoverInProgress = true;
+    self.remoteMAC = mac;
     var nfcPeer = self.nfc.getNFCPeer(session);
     var carrierPowerState = self.bluetooth.enabled ? 1 : 2;
     var mymac = self.defaultAdapter.address;
@@ -598,7 +601,7 @@ function HandoverManager() {
     };
     req.onerror = function() {
       debug('sendNDEF(hs) failed');
-      self.handoverInProgress = false;
+      self.remoteMAC = null;
     };
   }
 
@@ -615,13 +618,12 @@ function HandoverManager() {
     var mac = self.defaultAdapter.address;
     var hr = NdefHandoverCodec.encodeHandoverRequest(mac, carrierPowerState,
                                                      rnd);
-    var req = nfcPeer.sendNDEF(hs);
+    var req = nfcPeer.sendNDEF(hr);
     req.onsuccess = function() {
-      debug('sendNDEF(hs) succeeded');
-      doPairing(mac);
+      debug('sendNDEF(hr) succeeded');
     };
     req.onerror = function() {
-      debug('sendNDEF(hs) failed');
+      debug('sendNDEF(hr) failed');
       self.sendFileRequest = null;
     };
   };
@@ -664,11 +666,14 @@ function HandoverManager() {
   };
 
   this.isHandoverInProgress = function() {
-    return this.handoverInProgress;
+    return this.remoteMAC != null;
   };
 
   this.transferComplete = function() {
-    this.handoverInProgress = false;
+    if ((this.defaultAdapter != null) && (this.remoteMAC != null)) {
+      this.defaultAdapter.unpair(this.remoteMAC);
+    }
+    this.remoteMAC = null;
   };
 }
 
