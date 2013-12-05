@@ -418,6 +418,12 @@ var NfcManager = {
         handoverManager.handleHandoverSelect(ndefMsg);
         return;
       }
+      if ((firstRecord.tnf == NDEF.tnf_well_known) &&
+          NfcUtil.equalArrays(firstRecord.type, NDEF.rtd_handover_request)) {
+        this._debug('Handle Handover Request');
+        handoverManager.handleHandoverRequest(ndefMsg, command.sessionToken);
+        return;
+      }
     }
 
     // Assign priority of tech handling. This list will expand with supported

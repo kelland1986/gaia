@@ -8,9 +8,13 @@
 /*******************************************************************************
  * HandoverManager handles handovers from other Bluetooth devices according
  * to the specification of the NFC Forum (Document:
- * NFCForum-TS-ConnectionHandover_1_2.doc). HandoverManager exports the
- * following function:
+ * NFCForum-TS-ConnectionHandover_1_2.doc). HandoverManager exports five
+ * functions:
+ * - handleHandoverRequest: handle NDEF Handover Request messages
  * - handleHandoverSelect: handle NDEF Handover Select message
+ * - handleFileTransfer: trigger a file transfer with a remote device via BT.
+ * - isHandoverInProgress: returns true if a handover is in progress.
+ * - transferComplete: tell HandoverManager that a file transfer completed.
  */
 function HandoverManager() {
 
@@ -380,6 +384,69 @@ function HandoverManager() {
         }
       }
       return btssp;
+    },
+
+    /**
+     * encodeHandoverRequest(): returns a NDEF message containing a Handover
+     * Request. Only a Bluetooth AC will be added to the Handover Request.
+     * 'mac': MAC address (string). 'cps': Carrier Power State.
+     * 'rnd': Random value for collision resolution
+     */
+    encodeHandoverRequest: function encodeHandoverRequest(mac, cps, rnd) {
+      var macVals = mac.split(':');
+      if (macVals.length != 6) {
+        return null;
+      }
+      var m = new Array();
+      for (var i = 5; i >= 0; i--) {
+        m.push(parseInt(macVals[i], 16));
+      }
+      var rndLSB = rnd & 0xff;
+      var rndMSB = rnd >>> 8;
+      var hr = [new MozNdefRecord(1,
+                                  new Uint8Array([72, 114]),
+                                  new Uint8Array([]),
+                                  new Uint8Array([18, 145, 2, 2, 99, 114,
+                                                  rndMSB, rndLSB, 81, 2, 4, 97,
+                                                  99, cps, 1, 98, 0])),
+                new MozNdefRecord(2,
+                                  new Uint8Array([97, 112, 112, 108, 105, 99,
+                                                  97, 116, 105, 111, 110, 47,
+                                                  118, 110, 100, 46, 98, 108,
+                                                  117, 101, 116, 111, 111, 116,
+                                                  104, 46, 101, 112, 46, 111,
+                                                  111, 98]),
+                                  new Uint8Array([98]),
+                                  new Uint8Array([8, 0, m[0], m[1], m[2], m[3],
+                                                  m[4], m[5]]))];
+      return hr;
+    },
+
+    encodeHandoverSelect: function encodeHandoverSelect(mac, cps) {
+      var macVals = mac.split(':');
+      if (macVals.length != 6) {
+        return null;
+      }
+      var m = new Array();
+      for (var i = 5; i >= 0; i--) {
+        m.push(parseInt(macVals[i], 16));
+      }
+      var hs = [new MozNdefRecord(NdefConsts.tnf_well_known,
+                                  NdefConsts.rtd_handover_select,
+                                  new Uint8Array([]),
+                                  new Uint8Array([0x12, 0xD1, 0x02, 0x04, 0x61,
+                                                0x63, cps, 0x01, 0x30, 0x00])),
+                new MozNdefRecord(NdefConsts.tnf_mime_media,
+                                  new Uint8Array([97, 112, 112, 108, 105, 99,
+                                                  97, 116, 105, 111, 110, 47,
+                                                  118, 110, 100, 46, 98, 108,
+                                                  117, 101, 116, 111, 111, 116,
+                                                  104, 46, 101, 112, 46, 111,
+                                                  111, 98]),
+                                  new Uint8Array([0x30]),
+                                  new Uint8Array([8, 0, m[0], m[1], m[2], m[3],
+                                                  m[4], m[5]]))];
+      return hs;
     }
   };
 
@@ -395,6 +462,20 @@ function HandoverManager() {
    * Bluetooth is turned on.
    */
   this.actionQueue = new Array();
+
+  /*
+   * sendFileRequest is set whenever an app called peer.sendFile(blob).
+   * It will be inspected in the handling of Handover Select messages
+   * to distinguish between static and negotiated handovers.
+   */
+  this.sendFileRequest = null;
+
+  /*
+   * handoverInProgress is set to true in response to an incoming
+   * Handover Request. The flag is queried by isHandoverInProgress()
+   * and used in the BT file transfer app to recognize a handover.
+   */
+  this.handoverInProgress = false;
 
   /*
    * settingsNotified is used to prevent triggering Settings multiple times.
@@ -445,7 +526,26 @@ function HandoverManager() {
     }
   }
 
-  function doPairing(mac) {
+  function getBluetoothMAC(ndef) {
+    var h = NdefHandoverCodec.parse(ndef);
+    if (h == null) {
+      // Bad handover message. Just ignore.
+      debug('Bad handover messsage');
+      return null;
+    }
+    var btsspRecord = NdefHandoverCodec.searchForBluetoothAC(h);
+    if (btsspRecord == null) {
+      // There is no Bluetooth Alternative Carrier record in the
+      // Handover Select message. Since we cannot handle WiFi Direct,
+      // just ignore.
+      debug('No BT AC');
+      return null;
+    }
+    var btssp = NdefHandoverCodec.parseBluetoothSSP(btsspRecord);
+    return btssp.mac;
+  }
+
+  function doPairing(mac, onsuccess, onerror) {
     debug('doPairing: ' + mac);
     if (self.defaultAdapter == null) {
       // No BT
@@ -453,13 +553,78 @@ function HandoverManager() {
       return;
     }
     var req = self.defaultAdapter.pair(mac);
+    req.onsuccess = onsuccess;
+    req.onerror = onerror;
+  }
+
+  function doFileTransfer(mac) {
+    if (self.fileTransfer == null) {
+      // Nothing to do
+      return;
+    }
+    var onsuccess = function() {
+      var blob = self.sendFileRequest.blob;
+      var sendingFilesSchedule = {
+        filenames: ['NDEF Push'], // Will be removed once 946134 lands
+        numberOfFiles: 1,
+        numSuccessful: 0,
+        numUnsuccessful: 0
+      };
+      BluetoothTransfer.onFilesSending({detail: sendingFilesSchedule});
+      self.defaultAdapter.sendFile(blob, mac);
+    };
+    var onerror = function() {
+      self.fileTransfer = null;
+    };
+    doPairing(mac, onsuccess, onerror);
+  }
+
+  function doHandoverRequest(ndef, session) {
+    debug('doHandoverRequest');
+    var mac = getBluetoothMAC(ndef);
+    if (mac == null) {
+      return;
+    }
+
+    self.handoverInProgress = true;
+    var nfcPeer = self.nfc.getNFCPeer(session);
+    var carrierPowerState = self.bluetooth.enabled ? 1 : 2;
+    var mymac = self.defaultAdapter.address;
+    var hs = NdefHandoverCodec.encodeHandoverSelect(mymac, carrierPowerState);
+    var req = nfcPeer.sendNDEF(hs);
     req.onsuccess = function() {
-      debug('Pairing succeeded!');
+      debug('sendNDEF(hs) succeeded');
+      doPairing(mac);
     };
     req.onerror = function() {
-      debug('Pairing failed!');
+      debug('sendNDEF(hs) failed');
+      self.handoverInProgress = false;
     };
   }
+
+  function initiateFileTransfer(session, blob, onsuccess, onerror) {
+    /*
+     * Initiate a file transfer by sending a Handover Request to the
+     * remote device.
+     */
+    self.sendFileRequest = {blob: blob, onsuccess: onsuccess,
+                            onerror: onerror};
+    var nfcPeer = self.nfc.getNFCPeer(session);
+    var carrierPowerState = self.bluetooth.enabled ? 1 : 2;
+    var rnd = Math.floor(Math.random() * 0xffff);
+    var mac = self.defaultAdapter.address;
+    var hr = NdefHandoverCodec.encodeHandoverRequest(mac, carrierPowerState,
+                                                     rnd);
+    var req = nfcPeer.sendNDEF(hs);
+    req.onsuccess = function() {
+      debug('sendNDEF(hs) succeeded');
+      doPairing(mac);
+    };
+    req.onerror = function() {
+      debug('sendNDEF(hs) failed');
+      self.sendFileRequest = null;
+    };
+  };
 
   /*****************************************************************************
    *****************************************************************************
@@ -469,24 +634,41 @@ function HandoverManager() {
 
   this.handleHandoverSelect = function handleHandoverSelect(ndef) {
     debug('handleHandoverSelect');
-    var h = NdefHandoverCodec.parse(ndef);
-    if (h == null) {
-      // Bad handover message. Just ignore.
-      debug('Bad handover messsage');
+    var mac = getBluetoothMAC(ndef);
+    if (mac == null) {
       return;
     }
-    var btsspRecord = NdefHandoverCodec.searchForBluetoothAC(h);
-    if (btsspRecord == null) {
-      // There is no Bluetooth Alternative Carrier record in the
-      // Handover Select message. Since we cannot handle WiFi Direct,
-      // just ignore.
-      debug('No BT AC');
-      return;
+    if (this.sendFileRequest != null) {
+      // This is the response to a file transfer request (negotiated handover)
+      doAction({callback: doFileTransfer, args: [mac]});
+    } else {
+      // This is a static handover
+      debug('Pair with: ' + mac);
+      var onsuccess = function() { debug('Pairing succeeded'); };
+      var onerror = function() { debug('Pairing failed'); };
+      doAction({callback: doPairing, args: [mac, onsuccess, onerror]});
     }
-    var btssp = NdefHandoverCodec.parseBluetoothSSP(btsspRecord);
-    var mac = btssp.mac;
-    debug('Pair with: ' + mac);
-    doAction({callback: doPairing, args: [mac]});
+  };
+
+  this.handleHandoverRequest =
+                     function handleHandoverRequest(ndef, session) {
+    debug('handleHandoverRequest');
+    doAction({callback: doHandoverRequest, args: [ndef, session]});
+  };
+
+  this.handleFileTransfer =
+            function handleFileTransfer(session, blob, onsuccess, onerror) {
+    debug('handleFileTransfer');
+    doAction({callback: initiateFileTransfer, args: [session, blob,
+                                                     onsuccess, onerror]});
+  };
+
+  this.isHandoverInProgress = function() {
+    return this.handoverInProgress;
+  };
+
+  this.transferComplete = function() {
+    this.handoverInProgress = false;
   };
 }
 
