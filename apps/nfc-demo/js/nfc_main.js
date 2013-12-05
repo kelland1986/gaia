@@ -522,8 +522,8 @@ $(document).bind('ready', function() {
     nfcWriter.postContactFormToNdef('#nfc_contact_form_id');
   });
 
-  window.navigator.mozNfc.onpeerfound = function(event) {
-    debug('In onpeerfound handler' + JSON.stringify(event.detail));
+  window.navigator.mozNfc.onpeerready = function(event) {
+    debug('In onpeerready handler' + JSON.stringify(event.detail));
     var nfcdom = window.navigator.mozNfc;
     var nfcPeer = nfcdom.getNFCPeer(event.detail);
     var records = new Array();
