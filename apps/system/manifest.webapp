@@ -42,7 +42,8 @@
     "input":{},
     "input-manage":{},
     "nfc":{ "access": "readonly" },
-    "nfc-manager":{}
+    "nfc-manager":{},
+    "downloads":{}
   },
   "locales": {
     "ar": {
@@ -89,6 +90,11 @@
     "bluetoothTransfercomms": {
       "description": "Communication with bluetooth apps for sending files info",
       "rules": {}
+    }
+  },
+  "datastores-owned": {
+    "download_store": {
+      "description": "Stores successful downloads"
     }
   }
 }
