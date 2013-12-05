@@ -529,7 +529,13 @@ $(document).bind('ready', function() {
     var records = new Array();
     var ndef = nfcText.createTextNdefRecord_Utf8('Dummy Text', 'en');
     records.push(ndef);
-    nfcPeer.sendNDEF(records);
+    var req = nfcPeer.sendNDEF(records);
+    req.onsuccess = (function() {
+      debug('SEND NDEF successfully');
+    });
+    req.onerror = (function() {
+      debug('SEND NDEF FAILED');
+    });
   };
 
 });
