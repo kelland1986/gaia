@@ -565,15 +565,9 @@ function HandoverManager() {
     self.remoteMAC = mac;
     var onsuccess = function() {
       var blob = self.sendFileRequest.blob;
-      var sendingFilesSchedule = {
-        filenames: ['NDEF Push'], // Will be removed once 946134 lands
-        numberOfFiles: 1,
-        numSuccessful: 0,
-        numUnsuccessful: 0
-      };
-      BluetoothTransfer.onFilesSending({detail: sendingFilesSchedule});
-      debug('Send blob to ' + self.remoteMAC);
-      self.defaultAdapter.sendFile(blob, self.remoteMAC);
+      var mac = self.remoteMAC;
+      debug('Send blob to ' + mac);
+      BluetoothTransfer.sendFile(blob, mac);
     };
     var onerror = function() {
       self.sendFileRequest = null;
@@ -653,23 +647,23 @@ function HandoverManager() {
   };
 
   this.handleHandoverRequest =
-                     function handleHandoverRequest(ndef, session) {
-    debug('handleHandoverRequest');
-    doAction({callback: doHandoverRequest, args: [ndef, session]});
-  };
+    function handleHandoverRequest(ndef, session) {
+      debug('handleHandoverRequest');
+      doAction({callback: doHandoverRequest, args: [ndef, session]});
+    };
 
   this.handleFileTransfer =
-            function handleFileTransfer(session, blob, onsuccess, onerror) {
-    debug('handleFileTransfer');
-    doAction({callback: initiateFileTransfer, args: [session, blob,
-                                                     onsuccess, onerror]});
-  };
+    function handleFileTransfer(session, blob, onsuccess, onerror) {
+      debug('handleFileTransfer');
+      doAction({callback: initiateFileTransfer, args: [session, blob,
+                                                       onsuccess, onerror]});
+    };
 
-  this.isHandoverInProgress = function() {
+  this.isHandoverInProgress = function isHandoverInProgress() {
     return this.remoteMAC != null;
   };
 
-  this.transferComplete = function() {
+  this.transferComplete = function transferComplete() {
     if ((this.defaultAdapter != null) && (this.remoteMAC != null)) {
       this.defaultAdapter.unpair(this.remoteMAC);
     }

@@ -131,6 +131,7 @@ var BluetoothTransfer = {
 
   onReceivingFileConfirmation: function bt_onReceivingFileConfirmation(evt) {
     if (handoverManager.isHandoverInProgress()) {
+      // Bypassing confirm dialog while incoming file transfer via NFC Handover
       this.debug('Incoming file via NFC Handover. Bypassing confirm dialog');
       this.acceptReceive(evt);
       return;
@@ -276,6 +277,22 @@ var BluetoothTransfer = {
     };
   },
 
+  sendFile: function bt_sendFile(blob, mac) {
+    var adapter = Bluetooth.getAdapter();
+    if (adapter != null) {
+      var sendingFilesSchedule = {
+        numberOfFiles: 1,
+        numSuccessful: 0,
+        numUnsuccessful: 0
+      };
+      this.onFilesSending({detail: sendingFilesSchedule});
+      adapter.sendFile(blob, mac);
+    } else {
+      var msg = 'Cannot get adapter from system Bluetooth monitor.';
+      this.debug(msg);
+    }
+  },
+
   onUpdateProgress: function bt_onUpdateProgress(mode, evt) {
     switch (mode) {
       case 'start':
@@ -391,7 +408,10 @@ var BluetoothTransfer = {
   },
 
   onTransferComplete: function bt_onTransferComplete(evt) {
-    handoverManager.transferComplete();
+    if (handoverManager.isHandoverInProgress()) {
+      // Inform HandoverManager that the transfer completed
+      handoverManager.transferComplete();
+    }
     var transferInfo = evt.detail.transferInfo;
     var _ = navigator.mozL10n.get;
     // Remove transferring progress
