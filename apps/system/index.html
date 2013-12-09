@@ -140,7 +140,7 @@
 
     <!-- LockScreen -->
     <link rel="stylesheet" type="text/css" href="style/lockscreen/lockscreen.css">
-    <script defer src="js/lockscreen_slide.js"></script>
+    <script defer src="/shared/js/lockscreen_slide.js"></script>
     <script defer src="js/lockscreen.js"></script>
 
     <!-- PIN Unlocking -->
@@ -203,7 +203,7 @@
     <link rel="stylesheet" type="text/css" href="style/notifications/downloads.css">
     <script defer src="js/download/download_manager.js"></script>
     <!--
-      <script src="shared/js/download/download_launcher.js"></script>
+      <script src="shared/js/download/download_helper.js"></script>
       <script src="shared/js/download/download_ui.js"></script>
       <script src="shared/js/download/download_formatter.js"></script>
       <script src="shared/js/download/download_store.js"></script>
@@ -257,7 +257,6 @@
 
     <!-- Operator Variant Mechanism -->
     <script defer src="shared/js/operator_variant_helper.js"></script>
-    <script defer src="js/operator_variant/operator_variant_iccs.js"></script>
     <script defer src="js/operator_variant/operator_variant.js"></script>
 
     <!-- Crash Reporter -->
@@ -856,6 +855,8 @@
                 <span></span>
               </label>
             </div>
+            <ul id="permission-devices">
+            </ul>
             <menu data-items="2">
               <button id="permission-no"></button>
               <button id="permission-yes" class="affirmative"></button>
@@ -863,6 +864,16 @@
           </div>
         </div>
       </div>
+
+      <div id="device-list-item-tmpl" class="hide">
+      <!--
+        <label class="device-list deviceEnable">
+          <input class="input-enable" id="${id}" type="checkbox" ${checked}>
+          <span></span>
+        </label>
+        <span class="device-item">${label}</span>
+      -->
+    </div>
 
       <form id="app-install-dialog" class='app-install-dialog generic-dialog'
             data-type="confirm" role="dialog"

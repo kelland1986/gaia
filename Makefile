@@ -14,8 +14,10 @@
 #               the offline cache. This is mostly for desktop debugging.      #
 #                                                                             #
 # REPORTER    : Mocha reporter to use for test output.                        #
-#
-# MARIONETTE_RUNNER_HOST : The Marionnette runner host.
+#                                                                             #
+# MARIONETTE_RUNNER_HOST : The Marionnette runner host.                       #
+#                          Current values can be 'marionette-b2gdesktop-host' #
+#                          and 'marionette-device-host'                       #
 #                                                                             #
 # COVERAGE    : Add blanket testing coverage report to use for test output.   #
 #                                                                             #
@@ -90,7 +92,7 @@ NOFTU?=0
 # Automatically enable remote debugger
 REMOTE_DEBUGGER?=0
 
-ifeq ($(DEVICE_DEBUG), 1)
+ifeq ($(DEVICE_DEBUG),1)
 REMOTE_DEBUGGER=1
 endif
 
@@ -101,6 +103,8 @@ PROFILE_FOLDER?=profile-debug
 else ifeq ($(DESKTOP),1)
 NOFTU=1
 PROFILE_FOLDER?=profile-debug
+else ifeq ($(MAKECMDGOALS),test-integration)
+PROFILE_FOLDER?=profile-test
 endif
 
 PROFILE_FOLDER?=profile
@@ -121,8 +125,13 @@ endif
 HOMESCREEN?=$(SCHEME)system.$(GAIA_DOMAIN)
 
 BUILD_APP_NAME?=*
+TEST_INTEGRATION_APP_NAME?=*
 ifneq ($(APP),)
-BUILD_APP_NAME=$(APP)
+	ifeq ($(MAKECMDGOALS), test-integration)
+	TEST_INTEGRATION_APP_NAME=$(APP)
+	else
+	BUILD_APP_NAME=$(APP)
+	endif
 endif
 
 REPORTER?=Spec
@@ -132,7 +141,6 @@ export npm_config_loglevel=warn
 MARIONETTE_RUNNER_HOST?=marionette-b2gdesktop-host
 
 GAIA_INSTALL_PARENT?=/system/b2g
-ADB_REMOUNT?=0
 
 ifeq ($(MAKECMDGOALS), demo)
 GAIA_DOMAIN=thisdomaindoesnotexist.org
@@ -150,9 +158,7 @@ endif
 # PRODUCTION is also set for user and userdebug B2G builds
 ifeq ($(PRODUCTION), 1)
 GAIA_OPTIMIZE=1
-B2G_SYSTEM_APPS=1
 GAIA_APP_TARGET=production
-ADB_REMOUNT=1
 endif
 
 ifeq ($(DOGFOOD), 1)
@@ -719,30 +725,15 @@ b2g: node_modules/.bin/mozilla-download
 		--branch mozilla-central $@
 
 .PHONY: test-integration
-test-integration:
-	# override existing profile-test folder.
-	PROFILE_FOLDER=profile-test make
-	NPM_REGISTRY=$(NPM_REGISTRY) ./bin/gaia-marionette $(shell find . -path "*test/marionette/*_test.js") \
+# $(PROFILE_FOLDER) should be `profile-test` when we do `make test-integration`.
+test-integration: b2g $(PROFILE_FOLDER)
+	NPM_REGISTRY=$(NPM_REGISTRY) ./bin/gaia-marionette $(shell find . -path "*$(TEST_INTEGRATION_APP_NAME)/test/marionette/*_test.js") \
 		--host $(MARIONETTE_RUNNER_HOST) \
 		--reporter $(REPORTER)
 
 .PHONY: test-perf
 test-perf:
-	# All echo calls help create a JSON array
-	adb forward tcp:2828 tcp:2828
-	SHARED_PERF=`find tests/performance -name "*_test.js" -type f`; \
-	echo '['; \
-	for app in ${APPS}; \
-	do \
-		if [ -z "$${FIRST_LOOP_ITERATION}" ]; then \
-			FIRST_LOOP_ITERATION=done; \
-		else \
-			echo ','; \
-		fi; \
-		FILES_PERF=`test -d apps/$$app/test/performance && find apps/$$app/test/performance -name "*_test.js" -type f`; \
-		REPORTER=JSONMozPerf ./tests/js/bin/runner $$app $${SHARED_PERF} $${FILES_PERF}; \
-	done; \
-	echo ']';
+	APPS="$(APPS)" MARIONETTE_RUNNER_HOST=$(MARIONETTE_RUNNER_HOST) GAIA_DIR="`pwd`" NPM_REGISTRY=$(NPM_REGISTRY) ./bin/gaia-perf-marionette
 
 .PHONY: tests
 tests: webapp-manifests offline
@@ -761,9 +752,6 @@ common-install:
 
 .PHONY: update-common
 update-common: common-install
-	# integration tests
-	rm -f tests/vendor/marionette.js
-	cp $(TEST_AGENT_DIR)/node_modules/marionette-client/marionette.js tests/js/vendor/
 
 	# common testing tools
 	mkdir -p $(TEST_COMMON)/vendor/test-agent/
@@ -929,7 +917,7 @@ forward:
 TARGET_FOLDER = webapps/$(BUILD_APP_NAME).$(GAIA_DOMAIN)
 APP_NAME = $(shell cat *apps/${BUILD_APP_NAME}/manifest.webapp | grep name | head -1 | cut -d '"' -f 4 | cut -b 1-15)
 APP_PID = $(shell adb shell b2g-ps | grep '^${APP_NAME}' | sed 's/^${APP_NAME}\s*//' | awk '{ print $$2 }')
-install-gaia: $(PROFILE_FOLDER)
+install-gaia: adb-remount $(PROFILE_FOLDER)
 	@$(ADB) start-server
 ifeq ($(BUILD_APP_NAME),*)
 	@echo 'Stopping b2g'
@@ -941,10 +929,6 @@ else ifneq (${APP_PID},)
 	@$(ADB) shell kill ${APP_PID}
 endif
 	@$(ADB) shell rm -r $(MSYS_FIX)/cache/* > /dev/null
-
-ifeq ($(ADB_REMOUNT),1)
-	$(ADB) remount
-endif
 
 ifeq ($(BUILD_APP_NAME),*)
 	python build/install-gaia.py "$(ADB)" "$(MSYS_FIX)$(GAIA_INSTALL_PARENT)" "$(PROFILE_FOLDER)"
@@ -1052,3 +1036,8 @@ really-clean: clean
 
 .git/hooks/pre-commit: tools/pre-commit
 	test -d .git && cp tools/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit || true
+
+.PHONY: adb-remount
+adb-remount:
+	$(ADB) remount
+

@@ -195,12 +195,7 @@ form[data-type="action"] img[src=""] {
   height: 100%;
   left: 0;
   top: 0;
-
-  background-image: url(/shared/style/headers/images/ui/header.png),
-                    url(/shared/style/headers/images/ui/shadow.png);
-  background-repeat: repeat-x;
-  background-position: 0 0, 0 5rem;
-  background-size: 100% 5rem, 100% 0.3rem;
+  background: #fff;
 }
 
 .panel:first-child {
@@ -887,8 +882,9 @@ generateHeightRule() (in ThreadUI/thread_ui.js) will create:
 }
 
 .recipient[contenteditable=false].attention {
-  padding-left: 1.2rem;
+  position: relative;
 
+  padding-left: 1.2rem;
   border: 0.1rem solid #b90000;
 
   background: transparent;

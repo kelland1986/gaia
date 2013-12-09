@@ -31,17 +31,37 @@ var LockScreen = {
     },
 
     /**
-     * Unlocker want to unlock.
+     * Unlocker want to trigger the right one.
      */
-    activateUnlock: function _activateUnlock() {
+    activateRight: function _activateRight() {
       LockScreen._activateUnlock();
     },
 
     /**
-     * Unlocker want to activate the camera.
+     * Unlocker want to trigger the left one.
      */
-    activateCamera: function _activateCamera() {
+    activateLeft: function _activateLeft() {
       LockScreen._activateCamera();
+    },
+
+    /**
+     * Sliding near left and made the state changed.
+     *
+     * @param {string} |state| 'normal', 'accelerating'
+     * @param {string} |statePrev| 'normal', 'accelerating'
+     */
+    nearLeft: function _nearLeft(state, statePrev) {
+      // Do no-op in this lockscreen.
+    },
+
+    /**
+     * Sliding near right and made the state changed.
+     *
+     * @param {string} |state| 'normal', 'accelerating'
+     * @param {string} |statePrev| 'normal', 'accelerating'
+     */
+    nearRight: function _nearRight(state, statePrev) {
+      // Do no-op in this lockscreen.
     }
   },
 
@@ -192,9 +212,7 @@ var LockScreen = {
       return;
     }
     this.ready = true;
-
     this._unlocker = new LockScreenSlide(this.intentionRouter);
-
     this.getAllElements();
 
     this.lockIfEnabled(true);
@@ -398,6 +416,13 @@ var LockScreen = {
         break;
 
       case 'click':
+        if (0 === evt.mozInputSource &&
+            (this.areaUnlock === evt.target ||
+             this.areaCamera === evt.target)) {
+          evt.preventDefault();
+          this.handleIconClick(evt.target);
+          break;
+        }
         if (!evt.target.dataset.key)
           break;
 
