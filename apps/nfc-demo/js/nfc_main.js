@@ -470,7 +470,7 @@ function NfcActivityHandler(activity) {
 }
 
 // Main Document:
-$(document).bind('ready', function() {
+window.onload = function onload() {
   nfcUI.setMessageArea('#area');
   $('#startbutton').bind('click', function(event, ui) {
     if (isListening != true) {
@@ -538,5 +538,4 @@ $(document).bind('ready', function() {
     });
   };
 
-});
-
+};
