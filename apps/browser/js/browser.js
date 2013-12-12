@@ -1729,7 +1729,6 @@ function actHandle(activity) {
   } else {
     Browser.waitingActivities.push(activity);
   }
-  activity.postResult({ status: 'accepted' });
 }
 
 if (window.navigator.mozSetMessageHandler) {

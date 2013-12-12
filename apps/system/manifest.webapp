@@ -90,10 +90,15 @@
     "bluetoothTransfercomms": {
       "description": "Communication with bluetooth apps for sending files info",
       "rules": {}
+    },
+    "dialercomms": {
+      "description": "Communication with dialer app for sleep message",
+      "rules": {}
     }
   },
   "datastores-owned": {
     "download_store": {
+      "access": "readwrite",
       "description": "Stores successful downloads"
     }
   }

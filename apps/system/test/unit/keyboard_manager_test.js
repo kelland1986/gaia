@@ -423,6 +423,8 @@ suite('KeyboardManager', function() {
 
     test('In showingLayout', function() {
       var hideKeyboard = this.sinon.stub(KeyboardManager, 'hideKeyboard');
+      var setKeyboardToShow =
+                          this.sinon.stub(KeyboardManager, 'setKeyboardToShow');
       KeyboardManager.runningLayouts[fakeFrame_A.manifestURL] = {};
       KeyboardManager.runningLayouts[fakeFrame_A.manifestURL][fakeFrame_A.id] =
                                                               this.sinon.stub;
@@ -431,8 +433,10 @@ suite('KeyboardManager', function() {
         'app://keyboard.gaiamobile.org/manifest.webapp';
 
       KeyboardManager.showingLayout.frame = fakeFrame;
-      KeyboardManager.removeKeyboard(fakeFrame_A.manifestURL);
+      KeyboardManager.showingLayout.type = 'text';
+      KeyboardManager.removeKeyboard(fakeFrame_A.manifestURL, true);
       sinon.assert.callCount(hideKeyboard, 1);
+      assert.ok(setKeyboardToShow.calledWith('text'));
       assert.equal(
         KeyboardManager.runningLayouts.hasOwnProperty(fakeFrame_A.manifestURL),
         false);
@@ -479,13 +483,6 @@ suite('KeyboardManager', function() {
     test('activitywillclose event', function() {
       KeyboardManager.handleEvent({
         type: 'activitywillclose'
-      });
-      assert.ok(hideKeyboardImmediately.called);
-    });
-
-    test('appwillclose event', function() {
-      KeyboardManager.handleEvent({
-        type: 'appwillclose'
       });
       assert.ok(hideKeyboardImmediately.called);
     });
@@ -564,12 +561,33 @@ suite('KeyboardManager', function() {
     test('HideImmediately emits events', function() {
       var rsk = KeyboardManager.resetShowingKeyboard = sinon.stub();
       var kh = sinon.stub();
+      var khed = sinon.stub();
       window.addEventListener('keyboardhide', kh);
+      window.addEventListener('keyboardhidden', khed);
 
       KeyboardManager.hideKeyboardImmediately();
 
       sinon.assert.callCount(rsk, 1, 'resetShowingKeyborad');
       sinon.assert.callCount(kh, 1, 'keyboardhide event');
+      sinon.assert.callCount(khed, 1, 'keyboardhidden event');
+    });
+
+    test('Hide emits events', function() {
+      var rsk = KeyboardManager.resetShowingKeyboard = sinon.stub();
+      var kh = sinon.stub();
+      var khed = sinon.stub();
+      window.addEventListener('keyboardhide', kh);
+      window.addEventListener('keyboardhidden', khed);
+
+      KeyboardManager.hideKeyboard();
+      sinon.assert.callCount(kh, 1, 'keyboardhide event');
+      var fakeEvt = new CustomEvent('transitionend');
+      fakeEvt.propertyName = 'transform';
+      KeyboardManager.keyboardFrameContainer.dispatchEvent(fakeEvt);
+
+      sinon.assert.callCount(rsk, 1, 'resetShowingKeyborad');
+      sinon.assert.callCount(kh, 1, 'keyboardhide event');
+      sinon.assert.callCount(khed, 1, 'keyboardhidden event');
     });
   });
 
