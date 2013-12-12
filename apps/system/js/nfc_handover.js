@@ -18,14 +18,14 @@
  */
 function HandoverManager() {
 
-  this.DEBUG = false;
-  this.settings = window.navigator.mozSettings;
   this.bluetooth = window.navigator.mozBluetooth;
   this.nfc = window.navigator.mozNfc;
 
   this.defaultAdapter = null;
 
+  var DEBUG = false;
   var self = this;
+  var settings = window.navigator.mozSettings;
 
   /*****************************************************************************
    *****************************************************************************
@@ -37,7 +37,7 @@ function HandoverManager() {
    * Debug method
    */
   function debug(msg, optObject) {
-    if (self.DEBUG) {
+    if (DEBUG) {
       var output = '[DEBUG] SYSTEM NFC-HANDOVER: ' + msg;
       if (optObject) {
         output += JSON.stringify(optObject);
@@ -471,11 +471,9 @@ function HandoverManager() {
   this.sendFileRequest = null;
 
   /*
-   * handoverInProgress is set to true in response to an incoming
-   * Handover Request. The flag is queried by isHandoverInProgress()
-   * and used in the BT file transfer app to recognize a handover.
+   * remoteMAC is the MAC address of the remote device during a file transfer.
    */
-  this.handoverInProgress = false;
+  this.remoteMAC = null;
 
   /*
    * settingsNotified is used to prevent triggering Settings multiple times.
@@ -518,7 +516,7 @@ function HandoverManager() {
       debug('Bluetooth: not yet enabled');
       self.actionQueue.push(action);
       if (self.settingsNotified == false) {
-        self.settings.createLock().set({'bluetooth.enabled': true});
+        settings.createLock().set({'bluetooth.enabled': true});
         self.settingsNotified = true;
       }
     } else {
@@ -527,13 +525,13 @@ function HandoverManager() {
   }
 
   function getBluetoothMAC(ndef) {
-    var h = NdefHandoverCodec.parse(ndef);
-    if (h == null) {
+    var handover = NdefHandoverCodec.parse(ndef);
+    if (handover == null) {
       // Bad handover message. Just ignore.
       debug('Bad handover messsage');
       return null;
     }
-    var btsspRecord = NdefHandoverCodec.searchForBluetoothAC(h);
+    var btsspRecord = NdefHandoverCodec.searchForBluetoothAC(handover);
     if (btsspRecord == null) {
       // There is no Bluetooth Alternative Carrier record in the
       // Handover Select message. Since we cannot handle WiFi Direct,
@@ -558,23 +556,23 @@ function HandoverManager() {
   }
 
   function doFileTransfer(mac) {
-    if (self.fileTransfer == null) {
+    debug('doFileTransfer');
+    if (self.sendFileRequest == null) {
       // Nothing to do
+      debug('No pending sendFileRequest');
       return;
     }
+    self.remoteMAC = mac;
     var onsuccess = function() {
       var blob = self.sendFileRequest.blob;
-      var sendingFilesSchedule = {
-        filenames: ['NDEF Push'], // Will be removed once 946134 lands
-        numberOfFiles: 1,
-        numSuccessful: 0,
-        numUnsuccessful: 0
-      };
-      BluetoothTransfer.onFilesSending({detail: sendingFilesSchedule});
-      self.defaultAdapter.sendFile(blob, mac);
+      var mac = self.remoteMAC;
+      debug('Send blob to ' + mac);
+      BluetoothTransfer.sendFile(blob, mac);
     };
     var onerror = function() {
-      self.fileTransfer = null;
+      this.sendFileRequest.onerror();
+      self.sendFileRequest = null;
+      self.remoteMAC = null;
     };
     doPairing(mac, onsuccess, onerror);
   }
@@ -586,7 +584,7 @@ function HandoverManager() {
       return;
     }
 
-    self.handoverInProgress = true;
+    self.remoteMAC = mac;
     var nfcPeer = self.nfc.getNFCPeer(session);
     var carrierPowerState = self.bluetooth.enabled ? 1 : 2;
     var mymac = self.defaultAdapter.address;
@@ -598,9 +596,9 @@ function HandoverManager() {
     };
     req.onerror = function() {
       debug('sendNDEF(hs) failed');
-      self.handoverInProgress = false;
+      self.remoteMAC = null;
     };
-  }
+  };
 
   function initiateFileTransfer(session, blob, onsuccess, onerror) {
     /*
@@ -615,13 +613,12 @@ function HandoverManager() {
     var mac = self.defaultAdapter.address;
     var hr = NdefHandoverCodec.encodeHandoverRequest(mac, carrierPowerState,
                                                      rnd);
-    var req = nfcPeer.sendNDEF(hs);
+    var req = nfcPeer.sendNDEF(hr);
     req.onsuccess = function() {
-      debug('sendNDEF(hs) succeeded');
-      doPairing(mac);
+      debug('sendNDEF(hr) succeeded');
     };
     req.onerror = function() {
-      debug('sendNDEF(hs) failed');
+      debug('sendNDEF(hr) failed');
       self.sendFileRequest = null;
     };
   };
@@ -651,24 +648,36 @@ function HandoverManager() {
   };
 
   this.handleHandoverRequest =
-                     function handleHandoverRequest(ndef, session) {
-    debug('handleHandoverRequest');
-    doAction({callback: doHandoverRequest, args: [ndef, session]});
+    function handleHandoverRequest(ndef, session) {
+      debug('handleHandoverRequest');
+      doAction({callback: doHandoverRequest, args: [ndef, session]});
   };
 
   this.handleFileTransfer =
-            function handleFileTransfer(session, blob, onsuccess, onerror) {
-    debug('handleFileTransfer');
-    doAction({callback: initiateFileTransfer, args: [session, blob,
-                                                     onsuccess, onerror]});
+    function handleFileTransfer(session, blob, onsuccess, onerror) {
+      debug('handleFileTransfer');
+      doAction({callback: initiateFileTransfer, args: [session, blob,
+                                                       onsuccess, onerror]});
   };
 
-  this.isHandoverInProgress = function() {
-    return this.handoverInProgress;
+  this.isHandoverInProgress = function isHandoverInProgress() {
+    return this.remoteMAC != null;
   };
 
-  this.transferComplete = function() {
-    this.handoverInProgress = false;
+  this.transferComplete = function transferComplete(succeeded) {
+    if ((this.defaultAdapter != null) && (this.remoteMAC != null)) {
+      this.defaultAdapter.unpair(this.remoteMAC);
+      this.remoteMAC = null;
+    }
+    if (this.sendFileRequest != null) {
+      // Completed an outgoing send file request. Call onsuccess/onerror
+      if (succeeded == true) {
+        this.sendFileRequest.onsuccess();
+      } else {
+        this.sendFIleRequest.onerror();
+      }
+      this.sendFileRequest = null;
+    }
   };
 }
 
