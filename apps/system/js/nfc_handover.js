@@ -18,14 +18,14 @@
  */
 function HandoverManager() {
 
-  this.DEBUG = false;
-  this.settings = window.navigator.mozSettings;
   this.bluetooth = window.navigator.mozBluetooth;
   this.nfc = window.navigator.mozNfc;
 
   this.defaultAdapter = null;
 
+  var DEBUG = false;
   var self = this;
+  var settings = window.navigator.mozSettings;
 
   /*****************************************************************************
    *****************************************************************************
@@ -37,7 +37,7 @@ function HandoverManager() {
    * Debug method
    */
   function debug(msg, optObject) {
-    if (self.DEBUG) {
+    if (DEBUG) {
       var output = '[DEBUG] SYSTEM NFC-HANDOVER: ' + msg;
       if (optObject) {
         output += JSON.stringify(optObject);
@@ -516,7 +516,7 @@ function HandoverManager() {
       debug('Bluetooth: not yet enabled');
       self.actionQueue.push(action);
       if (self.settingsNotified == false) {
-        self.settings.createLock().set({'bluetooth.enabled': true});
+        settings.createLock().set({'bluetooth.enabled': true});
         self.settingsNotified = true;
       }
     } else {
