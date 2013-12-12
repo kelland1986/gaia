@@ -525,13 +525,13 @@ function HandoverManager() {
   }
 
   function getBluetoothMAC(ndef) {
-    var h = NdefHandoverCodec.parse(ndef);
-    if (h == null) {
+    var handover = NdefHandoverCodec.parse(ndef);
+    if (handover == null) {
       // Bad handover message. Just ignore.
       debug('Bad handover messsage');
       return null;
     }
-    var btsspRecord = NdefHandoverCodec.searchForBluetoothAC(h);
+    var btsspRecord = NdefHandoverCodec.searchForBluetoothAC(handover);
     if (btsspRecord == null) {
       // There is no Bluetooth Alternative Carrier record in the
       // Handover Select message. Since we cannot handle WiFi Direct,
@@ -570,6 +570,7 @@ function HandoverManager() {
       BluetoothTransfer.sendFile(blob, mac);
     };
     var onerror = function() {
+      this.sendFileRequest.onerror();
       self.sendFileRequest = null;
       self.remoteMAC = null;
     };
@@ -597,7 +598,7 @@ function HandoverManager() {
       debug('sendNDEF(hs) failed');
       self.remoteMAC = null;
     };
-  }
+  };
 
   function initiateFileTransfer(session, blob, onsuccess, onerror) {
     /*
@@ -650,24 +651,33 @@ function HandoverManager() {
     function handleHandoverRequest(ndef, session) {
       debug('handleHandoverRequest');
       doAction({callback: doHandoverRequest, args: [ndef, session]});
-    };
+  };
 
   this.handleFileTransfer =
     function handleFileTransfer(session, blob, onsuccess, onerror) {
       debug('handleFileTransfer');
       doAction({callback: initiateFileTransfer, args: [session, blob,
                                                        onsuccess, onerror]});
-    };
+  };
 
   this.isHandoverInProgress = function isHandoverInProgress() {
     return this.remoteMAC != null;
   };
 
-  this.transferComplete = function transferComplete() {
+  this.transferComplete = function transferComplete(succeeded) {
     if ((this.defaultAdapter != null) && (this.remoteMAC != null)) {
       this.defaultAdapter.unpair(this.remoteMAC);
+      this.remoteMAC = null;
     }
-    this.remoteMAC = null;
+    if (this.sendFileRequest != null) {
+      // Completed an outgoing send file request. Call onsuccess/onerror
+      if (succeeded == true) {
+        this.sendFileRequest.onsuccess();
+      } else {
+        this.sendFIleRequest.onerror();
+      }
+      this.sendFileRequest = null;
+    }
   };
 }
 

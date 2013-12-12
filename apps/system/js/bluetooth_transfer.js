@@ -408,11 +408,11 @@ var BluetoothTransfer = {
   },
 
   onTransferComplete: function bt_onTransferComplete(evt) {
+    var transferInfo = evt.detail.transferInfo;
     if (handoverManager.isHandoverInProgress()) {
       // Inform HandoverManager that the transfer completed
-      handoverManager.transferComplete();
+      handoverManager.transferComplete(transferInfo.success);
     }
-    var transferInfo = evt.detail.transferInfo;
     var _ = navigator.mozL10n.get;
     // Remove transferring progress
     this.removeProgress(transferInfo);
