@@ -30,8 +30,8 @@ var DownloadManager = (function() {
     } else {
       LazyLoader.load(['shared/js/download/download_formatter.js',
                        'shared/js/download/download_ui.js',
-                       'shared/js/download/download_launcher.js',
                        'shared/js/download/download_store.js',
+                       'shared/js/download/download_helper.js',
                        'js/download/download_notification.js'], function() {
         started = true;
         createDownloadNotification(ev.download);
@@ -41,11 +41,6 @@ var DownloadManager = (function() {
   };
 
   function createDownloadNotification(download) {
-    if (download.url === 'about:blank') {
-      // See bug 944682
-      return;
-    }
-
     var id = DownloadFormatter.getUUID(download);
     notifications[id] = new DownloadNotification(download);
   }
