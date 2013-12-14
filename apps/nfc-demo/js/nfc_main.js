@@ -529,12 +529,14 @@ window.onload = function onload() {
     var records = new Array();
     var ndef = nfcText.createTextNdefRecord_Utf8('Dummy Text', 'en');
     records.push(ndef);
-    var req = nfcPeer.sendNDEF(records);
+    //var req = nfcPeer.sendNDEF(records);
+    var fakeBlob = new Blob([], {type: 'image/png'});
+    var req = nfcPeer.sendFile(fakeBlob);
     req.onsuccess = (function() {
-      debug('SEND NDEF successfully');
+      debug('SEND file successfully');
     });
     req.onerror = (function() {
-      debug('SEND NDEF FAILED');
+      debug('SEND file FAILED');
     });
   };
 

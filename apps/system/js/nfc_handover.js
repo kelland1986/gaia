@@ -570,7 +570,7 @@ function HandoverManager() {
       BluetoothTransfer.sendFile(blob, mac);
     };
     var onerror = function() {
-      this.sendFileRequest.onerror();
+      self.sendFileRequest.onerror();
       self.sendFileRequest = null;
       self.remoteMAC = null;
     };
@@ -600,13 +600,19 @@ function HandoverManager() {
     };
   };
 
-  function initiateFileTransfer(session, blob, onsuccess, onerror) {
+  function initiateFileTransfer(session, blob, requestId) {
     /*
      * Initiate a file transfer by sending a Handover Request to the
      * remote device.
      */
-    self.sendFileRequest = {blob: blob, onsuccess: onsuccess,
-                            onerror: onerror};
+    var onsuccess = function() {
+      dispatchSendFileStatus(0);
+    };
+    var onerror = function() {
+      dispatchSendFileStatus(1);
+    };
+    self.sendFileRequest = {session: session, blob: blob,
+                            onsuccess: onsuccess, onerror: onerror};
     var nfcPeer = self.nfc.getNFCPeer(session);
     var carrierPowerState = self.bluetooth.enabled ? 1 : 2;
     var rnd = Math.floor(Math.random() * 0xffff);
@@ -619,9 +625,28 @@ function HandoverManager() {
     };
     req.onerror = function() {
       debug('sendNDEF(hr) failed');
+      onerror();
       self.sendFileRequest = null;
     };
   };
+
+  function dispatchSendFileStatus(status) {
+    debug('In initiateFileTransfer ' + status);
+    var detail = {
+                   status: status,
+                   requestId: self.sendFileRequest.requestId,
+                   sessionToken: self.sendFileRequest.sessionToken
+                 };
+    var evt = new CustomEvent('nfc-send-file-status', {
+      bubbles: true, cancelable: true,
+      detail: detail
+    });
+    window.dispatchEvent(evt);
+  };
+  window.navigator.mozSetMessageHandler('nfc-manager-send-file', function(msg) {
+    debug('In New event nfc-manager-send-file' + JSON.stringify(msg));
+    self.handleFileTransfer(msg.sessionToken, msg.blob, msg.requestId);
+  });
 
   /*****************************************************************************
    *****************************************************************************
@@ -654,10 +679,10 @@ function HandoverManager() {
   };
 
   this.handleFileTransfer =
-    function handleFileTransfer(session, blob, onsuccess, onerror) {
+    function handleFileTransfer(session, blob, requestId) {
       debug('handleFileTransfer');
       doAction({callback: initiateFileTransfer, args: [session, blob,
-                                                       onsuccess, onerror]});
+                                                       requestId]});
   };
 
   this.isHandoverInProgress = function isHandoverInProgress() {
@@ -665,6 +690,7 @@ function HandoverManager() {
   };
 
   this.transferComplete = function transferComplete(succeeded) {
+    debug('transferComplete');
     if ((this.defaultAdapter != null) && (this.remoteMAC != null)) {
       this.defaultAdapter.unpair(this.remoteMAC);
       this.remoteMAC = null;

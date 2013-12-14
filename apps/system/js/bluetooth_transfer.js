@@ -286,7 +286,7 @@ var BluetoothTransfer = {
         numUnsuccessful: 0
       };
       this.onFilesSending({detail: sendingFilesSchedule});
-      adapter.sendFile(blob, mac);
+      adapter.sendFile(mac, blob);
     } else {
       var msg = 'Cannot get adapter from system Bluetooth monitor.';
       this.debug(msg);
