@@ -277,7 +277,7 @@ var BluetoothTransfer = {
     };
   },
 
-  sendFile: function bt_sendFile(blob, mac) {
+  sendFile: function bt_sendFile(mac, blob) {
     var adapter = Bluetooth.getAdapter();
     if (adapter != null) {
       var sendingFilesSchedule = {

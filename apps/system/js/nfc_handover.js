@@ -567,7 +567,7 @@ function HandoverManager() {
       var blob = self.sendFileRequest.blob;
       var mac = self.remoteMAC;
       debug('Send blob to ' + mac);
-      BluetoothTransfer.sendFile(blob, mac);
+      BluetoothTransfer.sendFile(mac, blob);
     };
     var onerror = function() {
       self.sendFileRequest.onerror();
@@ -611,7 +611,7 @@ function HandoverManager() {
     var onerror = function() {
       dispatchSendFileStatus(1);
     };
-    self.sendFileRequest = {session: session, blob: blob,
+    self.sendFileRequest = {session: session, blob: blob, requestId: requestId,
                             onsuccess: onsuccess, onerror: onerror};
     var nfcPeer = self.nfc.getNFCPeer(session);
     var carrierPowerState = self.bluetooth.enabled ? 1 : 2;
@@ -635,7 +635,7 @@ function HandoverManager() {
     var detail = {
                    status: status,
                    requestId: self.sendFileRequest.requestId,
-                   sessionToken: self.sendFileRequest.sessionToken
+                   sessionToken: self.sendFileRequest.session
                  };
     var evt = new CustomEvent('nfc-send-file-status', {
       bubbles: true, cancelable: true,
@@ -643,6 +643,7 @@ function HandoverManager() {
     });
     window.dispatchEvent(evt);
   };
+
   window.navigator.mozSetMessageHandler('nfc-manager-send-file', function(msg) {
     debug('In New event nfc-manager-send-file' + JSON.stringify(msg));
     self.handleFileTransfer(msg.sessionToken, msg.blob, msg.requestId);
