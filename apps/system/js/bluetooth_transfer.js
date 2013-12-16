@@ -130,7 +130,7 @@ var BluetoothTransfer = {
   },
 
   onReceivingFileConfirmation: function bt_onReceivingFileConfirmation(evt) {
-    if (handoverManager.isHandoverInProgress()) {
+    if (HandoverManager.isHandoverInProgress()) {
       // Bypassing confirm dialog while incoming file transfer via NFC Handover
       this.debug('Incoming file via NFC Handover. Bypassing confirm dialog');
       this.acceptReceive(evt);
@@ -409,9 +409,9 @@ var BluetoothTransfer = {
 
   onTransferComplete: function bt_onTransferComplete(evt) {
     var transferInfo = evt.detail.transferInfo;
-    if (handoverManager.isHandoverInProgress()) {
+    if (HandoverManager.isHandoverInProgress()) {
       // Inform HandoverManager that the transfer completed
-      handoverManager.transferComplete(transferInfo.success);
+      HandoverManager.transferComplete(transferInfo.success);
     }
     var _ = navigator.mozL10n.get;
     // Remove transferring progress
