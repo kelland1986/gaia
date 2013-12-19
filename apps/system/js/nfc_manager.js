@@ -385,13 +385,13 @@ var NfcManager = {
       if ((firstRecord.tnf == NDEF.tnf_well_known) &&
           NfcUtil.equalArrays(firstRecord.type, NDEF.rtd_handover_select)) {
         this._debug('Handle Handover Select');
-        HandoverManager.handleHandoverSelect(ndefMsg);
+        NfcHandoverManager.handleHandoverSelect(ndefMsg);
         return;
       }
       if ((firstRecord.tnf == NDEF.tnf_well_known) &&
           NfcUtil.equalArrays(firstRecord.type, NDEF.rtd_handover_request)) {
         this._debug('Handle Handover Request');
-        HandoverManager.handleHandoverRequest(ndefMsg, command.sessionToken);
+        NfcHandoverManager.handleHandoverRequest(ndefMsg, command.sessionToken);
         return;
       }
     }

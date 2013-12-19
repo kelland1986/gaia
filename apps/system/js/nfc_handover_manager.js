@@ -6,17 +6,19 @@
 'use strict';
 
 /*******************************************************************************
- * HandoverManager handles handovers from other Bluetooth devices according
+ * NfcHandoverManager handles handovers from other Bluetooth devices according
  * to the specification of the NFC Forum (Document:
- * NFCForum-TS-ConnectionHandover_1_2.doc). HandoverManager exports five
+ * NFCForum-TS-ConnectionHandover_1_2.doc). NfcHandoverManager exports five
  * functions:
  * - handleHandoverRequest: handle NDEF Handover Request messages
  * - handleHandoverSelect: handle NDEF Handover Select message
  * - handleFileTransfer: trigger a file transfer with a remote device via BT.
  * - isHandoverInProgress: returns true if a handover is in progress.
- * - transferComplete: tell HandoverManager that a file transfer completed.
+ * - transferComplete: tell NfcHandoverManager that a file transfer completed.
  */
-var HandoverManager = {
+var NfcHandoverManager = {
+
+  DEBUG: false,
 
   settings: window.navigator.mozSettings,
   bluetooth: window.navigator.mozBluetooth,
@@ -24,7 +26,29 @@ var HandoverManager = {
 
   defaultAdapter: null,
 
-  DEBUG: false,
+  /*
+   * actionQueue keeps a list of actions that need to be performed after
+   * Bluetooth is turned on.
+   */
+  actionQueue: new Array(),
+
+  /*
+   * sendFileRequest is set whenever an app called peer.sendFile(blob).
+   * It will be inspected in the handling of Handover Select messages
+   * to distinguish between static and negotiated handovers.
+   */
+  sendFileRequest: null,
+
+  /*
+   * remoteMAC is the MAC address of the remote device during a file transfer.
+   */
+  remoteMAC: null,
+
+  /*
+   * settingsNotified is used to prevent triggering Settings multiple times.
+   */
+  settingsNotified: false,
+
 
   /*****************************************************************************
    *****************************************************************************
@@ -51,38 +75,14 @@ var HandoverManager = {
 
   /*****************************************************************************
    *****************************************************************************
-   * Event handlers
+   * Initialize event handlers
    *****************************************************************************
    ****************************************************************************/
 
-
-  /*
-   * actionQueue keeps a list of actions that need to be performed after
-   * Bluetooth is turned on.
-   */
-  actionQueue: new Array(),
-
-  /*
-   * sendFileRequest is set whenever an app called peer.sendFile(blob).
-   * It will be inspected in the handling of Handover Select messages
-   * to distinguish between static and negotiated handovers.
-   */
-  sendFileRequest: null,
-
-  /*
-   * remoteMAC is the MAC address of the remote device during a file transfer.
-   */
-  remoteMAC: null,
-
-  /*
-   * settingsNotified is used to prevent triggering Settings multiple times.
-   */
-  settingsNotified: false,
-
   init: function init() {
     var self = this;
-    this.bluetooth.addEventListener('adapteradded', function() {
-      self.debug('adapteradded');
+    this.bluetooth.addEventListener('bluetooth-adapter-added', function() {
+      self.debug('bluetooth-adapter-added');
       var req = self.bluetooth.getDefaultAdapter();
       req.onsuccess = function bt_getAdapterSuccess() {
         self.settingsNotified = false;
@@ -314,4 +314,4 @@ var HandoverManager = {
   }
 };
 
-HandoverManager.init();
+NfcHandoverManager.init();
