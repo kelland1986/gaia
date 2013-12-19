@@ -81,7 +81,7 @@ var NfcHandoverManager = {
 
   init: function init() {
     var self = this;
-    this.bluetooth.addEventListener('bluetooth-adapter-added', function() {
+    window.addEventListener('bluetooth-adapter-added', function() {
       self.debug('bluetooth-adapter-added');
       var req = self.bluetooth.getDefaultAdapter();
       req.onsuccess = function bt_getAdapterSuccess() {
