@@ -47,8 +47,32 @@
   function populateFrameMessages() {
     var title = document.getElementById('error-title');
     var message = document.getElementById('error-message');
-    localizeElement(title, 'unable-to-connect');
-    localizeElement(message, 'tap-to-retry');
+
+    var error = getErrorFromURI();
+    switch (error.e) {
+      case 'dnsNotFound': {
+        localizeElement(title, 'server-not-found');
+        localizeElement(message, 'server-not-found-error', {
+          name: location.host
+        });
+      }
+      break;
+
+      case 'netOffline': {
+        localizeElement(title, 'unable-to-connect');
+        localizeElement(message, 'tap-to-retry');
+      }
+      break;
+
+      default: {
+        // When we're a browser iframe used for generic content we'll use
+        // the default error message from gecko for all errors that are
+        // not directly dealt with.
+        localizeElement(title, 'unable-to-connect');
+        // The error message is already localized. Set it directly.
+        message.textContent = error.d;
+      }
+    }
   }
 
   /**
@@ -57,10 +81,32 @@
   function populateAppMessages() {
     var title = document.getElementById('error-title');
     var message = document.getElementById('error-message');
-    localizeElement(title, 'network-connection-unavailable');
-    localizeElement(message, 'network-error', {
-      name: location.protocol + '//' + location.host
-    });
+
+    var error = getErrorFromURI();
+    switch (error.e) {
+      case 'dnsNotFound': {
+        localizeElement(title, 'server-not-found');
+        localizeElement(message, 'server-not-found-error', {
+          name: location.host
+        });
+      }
+      break;
+
+      case 'netOffline': {
+        localizeElement(title, 'network-connection-unavailable');
+        localizeElement(message, 'network-error', {
+          name: location.protocol + '//' + location.host
+        });
+      }
+      break;
+
+      default: {
+        // Same thing when we're an iframe for an application.
+        localizeElement(title, 'unable-to-connect');
+        // The error message is already localized. Set it directly.
+        message.textContent = error.d;
+      }
+    }
   }
 
   /**
@@ -75,6 +121,40 @@
    */
   function applyAppStyle() {
     document.body.classList.add('no-frame');
+  }
+
+  /**
+   * Parse the neterror information that's sent to us as part of the documentURI
+   * and return an error object.
+   *
+   * The error object will contain the following attributes:
+   * e - Type of error (eg. 'netOffline').
+   * u - URL that generated the error.
+   * m - Manifest URI of the application that generated the error.
+   * c - Character set for default gecko error message (eg. 'UTF-8').
+   * d - Default gecko error message.
+   */
+  function getErrorFromURI() {
+    var error = {};
+    var uri = document.documentURI;
+
+    // Quick check to ensure it's the URI format we're expecting.
+    if (!uri.startsWith('about:neterror?')) {
+      // A blank error will generate the default error message (no network).
+      return error;
+    }
+
+    // Small hack to get the URL object to parse the URI correctly.
+    var url = new URL(uri.replace('about:', 'http://'));
+
+    // Set the error attributes.
+    ['e', 'u', 'm', 'c', 'd'].forEach(
+      function(v) {
+        error[v] = url.searchParams.get(v);
+      }
+    );
+
+    return error;
   }
 
   /**

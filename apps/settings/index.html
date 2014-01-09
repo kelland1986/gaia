@@ -18,7 +18,6 @@
     <link rel="stylesheet" type="text/css" href="style/icons.css">
     <link rel="stylesheet" type="text/css" href="style/settings.css">
     <link rel="stylesheet" type="text/css" href="style/settings_large.css">
-
     <!-- Panel Stylesheets
     <link rel="stylesheet" type="text/css" href="shared/style/action_menu.css"/>
     <link rel="stylesheet" type="text/css" href="shared/style/buttons.css"/>
@@ -29,6 +28,7 @@
     <link rel="stylesheet" type="text/css" href="style/phone_lock.css"/>
     <link rel="stylesheet" type="text/css" href="style/simcard.css"/>
     <link rel="stylesheet" type="text/css" href="style/updates.css"/>
+    <link rel="stylesheet" type="text/css" href="style/downloads.css"/>
     -->
 
     <!-- Shared resources
@@ -96,6 +96,7 @@
     <link rel="import" href="/elements/call_fdn_list_add.html">
     <link rel="import" href="/elements/call_fdn_list.html">
     <link rel="import" href="/elements/call_fdn_settings.html">
+    <link rel="import" href="/elements/call_iccs.html">
     <link rel="import" href="/elements/call.html">
     <link rel="import" href="/elements/messaging.html">
     <link rel="import" href="/elements/carrier_operator_settings.html">
@@ -104,6 +105,7 @@
     <link rel="import" href="/elements/carrier_supl_settings.html">
     <link rel="import" href="/elements/carrier_dc_warning.html">
     <link rel="import" href="/elements/carrier_dr_warning.html">
+    <link rel="import" href="/elements/carrier_iccs.html">
     <link rel="import" href="/elements/carrier.html">
     <link rel="import" href="/elements/bluetooth.html">
     <link rel="import" href="/elements/hotspot_wifi_settings.html">
@@ -208,6 +210,8 @@
     <section is="call-fdnSettings" role="region" id="call-fdnSettings"></section>
     <!-- Connectivity :: Call :: Voice Mail -->
     <section is="call-voiceMailSettings" role="region" id="call-voiceMailSettings"></section>
+    <!-- Connectivity :: Call :: ICCs -->
+    <section is="call-iccs" role="region" id="call-iccs"></section>
     <!-- Connectivity :: Call -->
     <section is="call" role="region" id="call" data-require-sub-panels="true"></section>
     <!-- Connectivity :: Messaging -->
@@ -224,6 +228,8 @@
     <section is="carrier-dc-warning" role="region" id="carrier-dc-warning"></section>
     <!-- Connectivity :: Cellular & Data :: Data Roaming Warnings -->
     <section is="carrier-dr-warning" role="region" id="carrier-dr-warning"></section>
+    <!-- Connectivity :: Cellular & Data :: ICCs -->
+    <section is="carrier-iccs" role="region" id="carrier-iccs"></section>
     <!-- Connectivity :: Cellular & Data -->
     <section is="carrier" role="region" id="carrier" data-require-sub-panels="true"></section>
     <!-- Connectivity :: Bluetooth -->
@@ -343,7 +349,7 @@
           <li id="simCardManager-settings" hidden>
             <a id="menuItem-simManager" class="menu-item" href="#sim-manager" data-l10n-id="simManager">SIM manager</a>
           </li>
-          <li id="call-settings">
+          <li id="call-settings" aria-disabled="true">
             <small id="call-desc" class="menu-item-desc"></small>
             <a id="menuItem-callSettings" class="menu-item" href="#call" data-l10n-id="callSettings">Call Settings</a>
           </li>
@@ -351,7 +357,7 @@
             <small id="messaging-desc" class="menu-item-desc"></small>
             <a id="menuItem-messagingSettings" class="menu-item" href="#messaging" data-l10n-id="messagingSettings">Messaging Settings</a>
           </li>
-          <li id="data-connectivity">
+          <li id="data-connectivity" aria-disabled="true">
             <small id="data-desc" class="menu-item-desc"></small>
             <a id="menuItem-cellularAndData" class="menu-item" href="#carrier" data-l10n-id="cellularAndData">Cellular &amp; Data</a>
           </li>

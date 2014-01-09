@@ -36,7 +36,8 @@ body, html {
   margin: 0 0.2rem;
 }
 
-#statusbar > .sb-start {
+#statusbar-title,
+body:not(.rb-enabled) #statusbar > .sb-start {
   float: left;
   -moz-transition: visibility 0.5s ease, -moz-transform 0.5s ease;
 }
@@ -63,7 +64,9 @@ body, html {
   right: 0;
 }
 
-.utility-tray #statusbar > .sb-start-upper {
+.utility-tray #statusbar > .sb-start-upper,
+.utility-tray #statusbar > #statusbar-title,
+#statusbar-title.hidden {
   visibility: visible;
   -moz-transform: translateY(2rem);
 }
@@ -80,6 +83,7 @@ body, html {
   bottom: 0.1rem;
 }
 
+#statusbar-title,
 #statusbar-time, #statusbar-data:not(.sb-icon-data-circle) {
   position: relative;
   bottom: 0.1rem;
@@ -439,10 +443,7 @@ body, html {
 }
 
 .sb-emergency-cb-icon-notification {
-  width: 1.6rem;
-  height: 1.6rem;
-  background: url('images/emergency-callback_icon_notification.png') no-repeat;
-  background-size: 1.6rem 1.6rem;
+  background-position: -25.2rem -8rem;
 }
 
 .sb-icon-sms {
@@ -475,17 +476,9 @@ body, html {
 }
 
 .sb-icon-call-forwarding {
-  /* Waiting for the correct icon. In the mean time we use this one. */
-  background: url('images/call-forwarding.png') no-repeat;
-  background-position: 0 0;
-  background-size: 1.6rem 1.6rem;
+  background-position: -21rem -8rem;
 }
 
 .sb-icon-playing {
   background-position: -18.9rem -8rem;
-}
-
-/* Keyboard IME switcher indicator */
-.sb-icon-keyboard {
-  background-position: -29.4rem -2rem;
 }

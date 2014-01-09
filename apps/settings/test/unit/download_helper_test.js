@@ -28,9 +28,10 @@ suite('DownloadHelper', function() {
   var mocksHelperForDownloadHelper = new MocksHelper([
     'DownloadStore',
     'LazyLoader',
-    'DownloadFormatter'
+    'DownloadFormatter',
+    'MozActivity'
   ]);
-  var realL10n, realDeviceStorage, realActivity, download;
+  var realL10n, realDeviceStorage, download;
 
   suiteSetup(function() {
     realL10n = navigator.mozL10n;
@@ -38,9 +39,6 @@ suite('DownloadHelper', function() {
 
     realDeviceStorage = navigator.getDeviceStorage;
     navigator.getDeviceStorage = MockGetDeviceStorage;
-
-    realActivity = window.MozActivity;
-    window.MozActivity = MockMozActivity;
 
     mocksHelperForDownloadHelper.suiteSetup();
   });
@@ -51,9 +49,6 @@ suite('DownloadHelper', function() {
 
     navigator.getDeviceStorage = realDeviceStorage;
     realDeviceStorage = null;
-
-    window.MozActivity = realActivity;
-    realActivity = null;
 
     download = null;
 
@@ -79,6 +74,29 @@ suite('DownloadHelper', function() {
     teardown(function() {
       download = null;
     });
+
+    function checkError(storage, code, done) {
+      download.state = 'succeeded';
+
+      var stubGetDeviceStorage = sinon.stub(navigator, 'getDeviceStorage',
+        function() {
+          return storage;
+        }
+      );
+
+      var req = DownloadHelper.launch(download);
+
+      req.onsuccess = function() {
+        assert.ok(false);
+        done();
+      };
+
+      req.onerror = function(evt) {
+        assert.equal(evt.target.error.code, code);
+        stubGetDeviceStorage.restore();
+        done();
+      };
+    }
 
     test('Invalid state download', function(done) {
       var req = DownloadHelper.launch(download);
@@ -118,35 +136,27 @@ suite('DownloadHelper', function() {
     });
 
     test('Missing file', function(done) {
-      download.state = 'succeeded';
-
-      var stubGetDeviceStorage = sinon.stub(navigator, 'getDeviceStorage',
-        function() {
+      var storage = {
+        'get' : function(path) {
           return {
-            'get' : function(path) {
-              return {
-                set onsuccess(cb) {},
-                set onerror(cb) {setTimeout(cb, 100)},
-                error: { 'name': 'custom error' }
-              };
+            set onsuccess(cb) {},
+            set onerror(cb) {setTimeout(cb, 100)},
+            error: { 'name': 'custom error' }
+          };
+        },
+        'available': function() {
+          return {
+            set onsuccess(cb) {
+              setTimeout(cb);
+            },
+            get result() {
+              return 'available';
             }
           };
         }
-      );
-
-      var req = DownloadHelper.launch(download);
-
-      req.onsuccess = function() {
-        assert.ok(false);
-        done();
       };
 
-      req.onerror = function(evt) {
-        assert.equal(evt.target.error.code,
-          DownloadHelper.CODE.FILE_NOT_FOUND);
-        stubGetDeviceStorage.restore();
-        done();
-      };
+      checkError(storage, DownloadHelper.CODE.FILE_NOT_FOUND, done);
     });
 
     test('Success', function(done) {
@@ -161,6 +171,40 @@ suite('DownloadHelper', function() {
         assert.ok(false);
         done();
       };
+    });
+
+    test('Unmounted sdcard', function(done) {
+      var storage = {
+        'available': function() {
+          return {
+            set onsuccess(cb) {
+              setTimeout(cb);
+            },
+            get result() {
+              return 'shared';
+            }
+          };
+        }
+      };
+
+      checkError(storage, DownloadHelper.CODE.UNMOUNTED_SDCARD, done);
+    });
+
+    test('No sdcard', function(done) {
+      var storage = {
+        'available': function() {
+          return {
+            set onsuccess(cb) {
+              setTimeout(cb);
+            },
+            get result() {
+              return 'unavailable';
+            }
+          };
+        }
+      };
+
+      checkError(storage, DownloadHelper.CODE.NO_SDCARD, done);
     });
   });
 });

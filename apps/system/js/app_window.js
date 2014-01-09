@@ -7,8 +7,9 @@
   var _start = new Date().getTime() / 1000;
 
   /**
-   * AppWindow creates, contains, manages a mozbrowser iframe.
-   * AppWindow is directly managed by AppWindowManager,
+   * AppWindow creates, contains, manages a
+   * [mozbrowser](https://developer.mozilla.org/en-US/docs/WebAPI/Browser)
+   * iframe. AppWindow is directly managed by AppWindowManager,
    * by call resize(), open(), close() on AppWindow.
    *
    * Basically AppWindow would manipulate all mozbrowser events
@@ -27,9 +28,7 @@
    * just the manifestURL.
    *
    * ##### Life cycle state machine of an appWindow instance
-   * <a href="http://i.imgur.com/ELuEopw.png" target="blank">
-   *   <img src="http://i.imgur.com/ELuEopw.png"></img>
-   * </a>
+   * ![appWindow Life cycle state machine](http://i.imgur.com/ELuEopw.png)
    *
    * @example
    * var app = new AppWindow({
@@ -74,7 +73,7 @@
   /**
    * Generate all configurations we need.
    * @param  {Object} configuration Initial configuration object
-   *  Includes manifestURL, manifest, url, origin, name
+   *  Includes manifestURL, manifest, url, origin, name.
    */
   AppWindow.prototype.reConfig = function aw_reConfig(configuration) {
     // Some modules are querying appWindow.manifestURL or appWindow.origin
@@ -90,10 +89,25 @@
       this.manifest.chrome :
       this.config.chrome;
 
+    if (!this.manifest && this.config && this.config.title) {
+      this.updateName(this.config.title);
+    }
+
     // Get icon splash
     this.getIconForSplash();
 
     this.generateID();
+  };
+
+  /**
+   * Update the name of this window.
+   * @param {String} name The new name.
+   */
+  AppWindow.prototype.updateName = function aw_updateName(name) {
+    if (this.config && this.config.title) {
+      this.config.title = name;
+    }
+    this.name = name;
   };
 
   /**
@@ -126,7 +140,7 @@
     try {
       throw new Error('e');
     } catch (e) {
-      dump(e.stack);
+      this.debug(e.stack);
     }
     dump('======================');
   };
@@ -189,11 +203,16 @@
    * So this shouldn't be invoked by others directly.
    */
   AppWindow.prototype._showFrame = function aw__showFrame() {
+    this.debug('before showing frame');
     if (this._screenshotOverlayState != 'frame')
       return;
 
     this.browser.element.classList.remove('hidden');
     this._setVisible(true);
+
+    if (this.isHomescreen) {
+      return;
+    }
 
     // Getting a new screenshot to force compositing before
     // removing the screenshot overlay if it exists.
@@ -314,6 +333,16 @@
   };
 
   /**
+   * An appWindow is dead if somebody requested it to be killed.
+   *
+   * @return {Boolean} The instance is dead or not.
+   */
+  AppWindow.prototype.isDead = function aw_isDead() {
+    return (this._killed);
+  };
+
+
+  /**
    * Destroy the instance.
    * @fires AppWindow#appdestroyed
    */
@@ -420,7 +449,7 @@
   AppWindow.REGISTERED_EVENTS =
     ['mozbrowserclose', 'mozbrowsererror', 'mozbrowservisibilitychange',
       'mozbrowserloadend', 'mozbrowseractivitydone', 'mozbrowserloadstart',
-      '_localized', '_swipein', '_swipeout'];
+      'mozbrowsertitlechange', '_localized', '_swipein', '_swipeout'];
 
   AppWindow.SUB_COMPONENTS = {
     'transitionController': window.AppTransitionController,
@@ -486,6 +515,7 @@
 
   AppWindow.prototype._handle_mozbrowservisibilitychange =
     function aw__handle_mozbrowservisibilitychange(evt) {
+
       var type = evt.detail.visible ? 'foreground' : 'background';
       this.publish(type);
     };
@@ -524,12 +554,20 @@
       this.publish('loading');
     };
 
+  AppWindow.prototype._handle_mozbrowsertitlechange =
+    function aw__handle_handle_mozbrowsertitlechange(evt) {
+      this.title = evt.detail;
+      this.publish('titlechange');
+    };
+
   AppWindow.prototype._handle_mozbrowserloadend =
     function aw__handle_mozbrowserloadend(evt) {
       if (!this.loaded) {
+        // Perf test needs.
         this.publish('loadtime', {
           time: parseInt(Date.now() - this.launchTime),
-          type: 'c'
+          type: 'c',
+          src: this.config.url
         });
       }
       this.loading = false;
@@ -573,7 +611,7 @@
   /**
    * General event handler interface.
    * Child classes shouldn't change this.
-   * @param  {DOMEvent} evt The event
+   * @param  {DOMEvent} evt The event.
    */
   AppWindow.prototype.handleEvent = function aw_handleEvent(evt) {
     this.debug(' Handling ' + evt.type + ' event...');
@@ -628,6 +666,11 @@
   AppWindow.prototype.tryWaitForFullRepaint = function onTWFRepaint(callback) {
     if (!callback)
       return;
+
+    if (this.isHomescreen) {
+      setTimeout(callback);
+      return;
+    }
 
     this.getScreenshot(function() {
       setTimeout(callback);
@@ -839,9 +882,8 @@
     };
 
   AppWindow.prototype.calibratedHeight = function aw_calibratedHeight() {
-    if (this.appChrome &&
-        !this.appChrome.hidingNavigation) {
-      return -5;
+    if (this.appChrome && this.appChrome.hidingNavigation) {
+      return this.appChrome.getBarHeight();
     } else {
       return 0;
     }
@@ -909,9 +951,7 @@
   * if an app is launched by system message we don't need to resize
   * it.
   *
-  * <a href="http://i.imgur.com/bUMm4VM.png" target="_blank">
-  *   <img src="http://i.imgur.com/bUMm4VM.png"></img>
-  * </a>
+  * ![AppWindow resize flow chart](http://i.imgur.com/bUMm4VM.png)
   */
   AppWindow.prototype.resize = function aw_resize() {
     this.debug('request RESIZE...active? ', this.isActive());
@@ -1039,6 +1079,17 @@
     }
   };
 
+  /**
+   * The preferred CSS size of the icon used for cold launch splash for phones.
+   */
+  AppWindow.prototype.SPLASH_ICON_SIZE_TINY = 60;
+
+  /**
+   * The preferred CSS size of the icon used for cold launch splash for
+   * other devices.
+   */
+  AppWindow.prototype.SPLASH_ICON_SIZE_NOT_TINY = 90;
+
   AppWindow.prototype.getIconForSplash =
     function aw_getIconForSplash(manifest) {
       var icons = this.manifest ?
@@ -1047,24 +1098,29 @@
         return null;
       }
 
-      var sizes = Object.keys(icons).map(function parse(str) {
-        return parseInt(str, 10);
-      });
+      var targetedPixelSize = 2 * (ScreenLayout.getCurrentLayout('tiny') ?
+        this.SPLASH_ICON_SIZE_TINY : this.SPLASH_ICON_SIZE_NOT_TINY) *
+        Math.ceil(window.devicePixelRatio || 1);
 
-      sizes.sort(function(x, y) { return y - x; });
+      var preferredSize = Number.MAX_VALUE;
+      var max = 0;
 
-      var index = 0;
-      var width = LayoutManager.clientWidth;
-      for (var i = 0; i < sizes.length; i++) {
-        if (sizes[i] < width) {
-          index = i;
-          break;
-        }
+      for (var size in icons) {
+        size = parseInt(size, 10);
+        if (size > max)
+          max = size;
+
+        if (size >= targetedPixelSize && size < preferredSize)
+          preferredSize = size;
       }
+      // If there is an icon matching the preferred size, we return the result,
+      // if there isn't, we will return the maximum available size.
+      if (preferredSize === Number.MAX_VALUE)
+        preferredSize = max;
 
-      this._splash = icons[sizes[index]];
+      this._splash = icons[preferredSize];
       this.preloadSplash();
-      return icons[sizes[index]];
+      return icons[preferredSize];
     };
 
   /**
@@ -1077,6 +1133,11 @@
           !this.loaded && !this.splashed && this.element && this._splash) {
         this.splashed = true;
         this.element.style.backgroundImage = 'url("' + this._splash + '")';
+
+        var iconCSSSize = 2 * (ScreenLayout.getCurrentLayout('tiny') ?
+        this.SPLASH_ICON_SIZE_TINY : this.SPLASH_ICON_SIZE_NOT_TINY);
+        this.element.style.backgroundSize =
+          iconCSSSize + 'px ' + iconCSSSize + 'px';
       }
     };
 
@@ -1144,7 +1205,6 @@
       setTimeout(callback);
       return;
     } else {
-      this.debug('loaded');
       var invoked = false;
       this.waitForNextPaint(function() {
         if (invoked)
@@ -1152,6 +1212,10 @@
         invoked = true;
         setTimeout(callback);
       });
+      if (this.isHomescreen) {
+        this.setVisible(true);
+        return;
+      }
       this.tryWaitForFullRepaint(function() {
         if (invoked)
           return;
@@ -1163,7 +1227,7 @@
 
   /**
    * Open the window; the detail is done in appTransitionController.
-   * @param  {String} animation The animation class name
+   * @param  {String} animation The animation class name.
    */
   AppWindow.prototype.open = function aw_open(animation) {
     // Request "open" to our internal transition controller.
@@ -1175,7 +1239,7 @@
 
   /**
    * Close the window; the detail is done in appTransitionController.
-   * @param  {String} animation The animation class name
+   * @param  {String} animation The animation class name.
    */
   AppWindow.prototype.close = function aw_close(animation) {
     // Request "close" to our internal transition controller.

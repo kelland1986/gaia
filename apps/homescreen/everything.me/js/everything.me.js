@@ -1,9 +1,24 @@
 'use strict';
 
 var EverythingME = {
+  apiKey: '1518c0001ff736528322f306f41f027d',
+
+  activated: false,
   pendingEvent: undefined,
 
-  init: function EverythingME_init() {
+  init: function EverythingME_init(config) {
+    this.debug = !!config.debug;
+
+    var self = this;
+
+    LazyLoader.load(['shared/js/settings_listener.js'],
+      function loaded() {
+        SettingsListener.observe('rocketbar.enabled', false,
+          function onSettingChange(value) {
+          self.rocketbarEnabled = value;
+        });
+      });
+
     var footer = document.querySelector('#footer');
     if (footer) {
       footer.style.MozTransition = '-moz-transform .3s ease';
@@ -34,9 +49,26 @@ var EverythingME = {
     // add event listeners that trigger evme load
     activationIcon.addEventListener('contextmenu', onContextMenu);
     activationIcon.addEventListener('click', triggerActivateFromInput);
+    activationIcon.addEventListener('touchstart', searchFocus);
     window.addEventListener('collectionlaunch', triggerActivate);
     window.addEventListener('collectiondropapp', triggerActivate);
     window.addEventListener('suggestcollections', triggerActivate);
+    window.addEventListener('search-focus', searchFocus);
+
+    /**
+     * Called when the search bar is focused.
+     * Opens the rocketbar and prevents the event default
+     * Ensures that we do not focus on the searchbar, otherwise
+     * the keyboard can flicker or not show up.
+     */
+    function searchFocus(e) {
+      if (self.rocketbarEnabled) {
+        e.preventDefault();
+        // Call stopPropagation to prevent the click event
+        e.stopPropagation();
+        self.openRocketbar();
+      }
+    }
 
     // specifically for pseudo searchbar
     function triggerActivateFromInput(e) {
@@ -75,10 +107,10 @@ var EverythingME = {
 
       // load styles required for Collection styling
       LazyLoader.load([
-        document.getElementById('search-page'),
         'shared/style_unstable/progress_activity.css',
         'everything.me/css/common.css',
-        'everything.me/modules/Collection/Collection.css'],
+        'everything.me/modules/Collection/Collection.css',
+        document.getElementById('search-page')],
         function assetsLoaded() {
           // Activate evme load
           // But wait a tick, so there's no flash of unstyled progress indicator
@@ -141,6 +173,13 @@ var EverythingME = {
     EverythingME.migrateStorage();
   },
 
+  openRocketbar: function() {
+    LazyLoader.load(['everything.me/js/search/control.js'],
+      function loaded() {
+        EverythingME.SearchControl.open();
+      });
+  },
+
   onActivationIconBlur: function onActivationIconBlur(e) {
     EverythingME.pendingEvent = null;
     e.target.removeEventListener('blur', onActivationIconBlur);
@@ -169,6 +208,11 @@ var EverythingME = {
   },
 
   activate: function EverythingME_activate() {
+    if (EverythingME.activated) {
+      return;
+    }
+
+    EverythingME.activated = true;
     var searchPage = document.getElementById('search-page');
     LazyLoader.load(searchPage, function loaded() {
       document.body.classList.add('evme-loading');
@@ -193,7 +237,6 @@ var EverythingME = {
           'js/api/DoATAPI.js',
           'js/helpers/EventHandler.js',
           'js/helpers/Idle.js',
-          'shared/js/settings_listener.js',
           'shared/js/icc_helper.js',
           'shared/js/mobile_operator.js',
           'js/plugins/Analytics.js',
@@ -286,11 +329,14 @@ var EverythingME = {
   },
 
   initEvme: function EverythingME_initEvme() {
-    Evme.init(EverythingME.onEvmeLoaded);
+    Evme.init({
+      'apiKey' : this.apiKey
+    }, EverythingME.onEvmeLoaded);
     EvmeFacade = Evme;
   },
 
   onEvmeLoaded: function onEvmeLoaded() {
+
     var page = document.getElementById('evmeContainer'),
         gridPage = document.querySelector('#icongrid > div:first-child'),
         activationIcon = document.getElementById('evme-activation-icon'),
@@ -388,7 +434,7 @@ var EverythingME = {
       asyncStorage.setItem(migrationStorageKey, true);
 
       // start the migration
-      console.log('[EVME migration] migrating from 1.0.1 to 1.1...');
+      EverythingME.log('[EVME migration] migrating from 1.0.1 to 1.1...');
 
       // these are properties that don't need special attention -
       // simply copy from sync to async, oldKey: newKey
@@ -407,7 +453,7 @@ var EverythingME = {
       function onDataMigrated() {
         numberOfKeysDone++;
         if (numberOfKeysDone >= numberOfKeys) {
-          console.log('[EVME migration] complete successfully!');
+          EverythingME.log('[EVME migration] complete successfully!');
           onComplete();
         }
       }
@@ -419,21 +465,22 @@ var EverythingME = {
       onComplete = function() {};
     }
 
-    console.log('[EVME migration] [' + oldKey + ']: retrieving...');
+    EverythingME.log('[EVME migration] [' + oldKey + ']: retrieving...');
 
     try {
       var oldValue = window.localStorage[oldKey];
 
       if (!oldValue) {
-        console.log('[EVME migration] [' + oldKey + ']: no value');
+        EverythingME.log('[EVME migration] [' + oldKey + ']: no value');
         onComplete(false);
         return false;
       }
 
-      console.log('[EVME migration] [' + oldKey + '] got value: ' + oldValue);
+      EverythingME.log('[EVME migration] [' +
+                                          oldKey + '] got value: ' + oldValue);
       oldValue = JSON.parse(oldValue);
       if (!oldValue) {
-        console.log('[EVME migration] [' + oldKey + ']: invalid json: ' +
+        EverythingME.log('[EVME migration] [' + oldKey + ']: invalid json: ' +
                                                   window.localStorage[oldKey]);
         deleteOld();
         onComplete(false);
@@ -446,10 +493,10 @@ var EverythingME = {
         'expires': oldValue._e
       };
 
-      console.log('[EVME migration] [' + oldKey + ':' + newKey + ']: saving: ' +
-                                                     JSON.stringify(newValue));
+      EverythingME.log('[EVME migration] [' +
+              oldKey + ':' + newKey + ']: saving: ' + JSON.stringify(newValue));
       asyncStorage.setItem(newKey, newValue, function onsaved() {
-        console.log('[EVME migration] [' + oldKey + ':' + newKey +
+        EverythingME.log('[EVME migration] [' + oldKey + ':' + newKey +
                                                   ']: saved, remove old data');
         deleteOld();
         onComplete(true);
@@ -502,6 +549,12 @@ var EverythingME = {
     if (elLoading) {
       elLoading.parentNode.removeChild(elLoading);
     }
+  },
+
+  log: function log() {
+    if (this.debug) {
+      console.log.apply(window, arguments);
+    }
   }
 };
 
@@ -513,3 +566,66 @@ var EvmeFacade = {
     return false;
   }
 };
+
+
+function MessageHandler() {
+  var self = this;
+  var searchPort = null;
+
+  this.onmessage = openSearchPort;
+
+  // handle incoming eme-api connections
+  // first message triggers eme-client connection setup
+  navigator.mozSetMessageHandler('connection',
+    function(connectionRequest) {
+      var keyword = connectionRequest.keyword;
+      if (connectionRequest.keyword === 'eme-api') {
+        var port = connectionRequest.port;
+        port.onmessage = self.onmessage;
+        port.start();
+      }
+    }
+  );
+
+  /**
+   * Opens the search eme-client port.
+   * We need to do this only after we receive a message
+   * Or else we will trigger launching of the search-results app.
+   */
+  function openSearchPort(msg) {
+    navigator.mozApps.getSelf().onsuccess = function() {
+      var app = this.result;
+      app.connect('eme-client').then(
+        function onConnectionAccepted(ports) {
+          ports.forEach(function(port) {
+            searchPort = port;
+          });
+          MessageHandler.onmessage = handleMessage;
+          handleMessage(msg);
+        },
+        function onConnectionRejected(reason) {
+          dump('Error connecting: ' + reason + '\n');
+        }
+      );
+    };
+  }
+
+  function handleMessage(msg) {
+    var action = msg.data.action;
+
+    switch (action) {
+      case 'init':
+        searchPort.postMessage({
+          'action': 'init',
+          'apiKey': EverythingME.apiKey
+        });
+        break;
+
+      default:
+        break;
+    }
+  };
+
+}
+
+new MessageHandler();

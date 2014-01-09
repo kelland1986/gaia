@@ -106,11 +106,7 @@
         };
         app = new AppWindow(config);
       } else {
-        // XXX: Move this into app window.
-        // Do not touch the name here directly.
-        // Update app name for the card view
-        app.manifest ? (app.manifest.name = config.title) :
-                        (app.name = config.title);
+        app.updateName(config.title);
       }
 
       this.publish('launchapp', { origin: config.origin });
@@ -148,6 +144,9 @@
         config.useAsyncPanZoom = false;
       }
 
+      if ('remote' in features)
+        config.oop = true;
+
       return config;
     },
 
@@ -156,6 +155,6 @@
       window.dispatchEvent(evt);
     }
   };
-
+  window.WrapperFactory = WrapperFactory;
   WrapperFactory.init();
 }(this));

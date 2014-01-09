@@ -39,7 +39,6 @@ suite('simcard dialog', function() {
     stubById = this.sinon.stub(document, 'getElementById');
     stubById.returns(document.createElement('div'));
     MockSIMSlotManager.mInstances = [new MockSIMSlot(null, 0)];
-    MockSIMSlotManager.length = 1;
     requireApp('system/js/simcard_dialog.js', callback);
   });
 
@@ -63,7 +62,7 @@ suite('simcard dialog', function() {
     SimPinDialog.unlockCardLock();
     assert.isTrue(stubUnlockCardLock.called);
     domreq.onsuccess();
-    assert.isTrue(stubRequestClose.called);
+    assert.isTrue(stubRequestClose.calledWith('success'));
     domreq.onerror();
     assert.isTrue(stubHandleError.called);
   });

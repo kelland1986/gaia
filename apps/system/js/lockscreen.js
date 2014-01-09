@@ -44,6 +44,14 @@ var LockScreen = {
       LockScreen._activateCamera();
     },
 
+    unlockingStart: function _unlockingStart() {
+      LockScreen._notifyUnlockingStart();
+    },
+
+    unlockingStop: function _unlockingStop() {
+      LockScreen._notifyUnlockingStop();
+    },
+
     /**
      * Sliding near left and made the state changed.
      *
@@ -93,7 +101,7 @@ var LockScreen = {
   /*
   * Boolean returns wether we want a sound effect when unlocking.
   */
-  unlockSoundEnabled: true,
+  unlockSoundEnabled: false,
 
   /*
   * Boolean return whether if the lock screen is enabled or not.
@@ -405,6 +413,12 @@ var LockScreen = {
         break;
 
       case 'touchstart':
+        // Edge case: when the passcode is valid, passpad should fade out.
+        // So the touchevent should do nothing.
+        var passcodeValid =
+          ('success' === this.overlay.dataset.passcodeStatus);
+        if (passcodeValid)
+          return;
         if (evt.target === this.altCamera) {
           evt.preventDefault();
           this.handleIconClick(evt.target);
@@ -473,6 +487,14 @@ var LockScreen = {
           this.switchPanel();
         break;
     }
+  },
+
+  _notifyUnlockingStart: function ls_notifyUnlockingStart() {
+    window.dispatchEvent(new CustomEvent('unlocking-start'));
+  },
+
+  _notifyUnlockingStop: function ls_notifyUnlockingStop() {
+    window.dispatchEvent(new CustomEvent('unlocking-stop'));
   },
 
   /**

@@ -147,6 +147,56 @@ suite('call screen', function() {
     screen.parentNode.removeChild(screen);
   });
 
+  suite('call screen initialize', function() {
+    var mockElements = ['keypadButton', 'placeNewCallButton', 'answerButton',
+      'rejectButton', 'holdButton', 'showGroupButton', 'hideGroupButton',
+      'incomingAnswer', 'incomingEnd', 'incomingIgnore'];
+
+    setup(function() {
+      this.sinon.stub(CallScreen, 'showClock');
+      this.sinon.stub(CallScreen, 'initLockScreenSlide');
+      this.sinon.stub(CallScreen, 'render');
+      mockElements.forEach(function(name) {
+        CallScreen[name] = document.createElement('button');
+      });
+    });
+
+    test('screen init type other than incoming-locked', function() {
+      CallScreen.init();
+      sinon.assert.notCalled(CallScreen.showClock);
+      sinon.assert.notCalled(CallScreen.initLockScreenSlide);
+      sinon.assert.notCalled(CallScreen.render);
+    });
+
+    suite('incoming-locked screen initialize', function() {
+      var oldHash;
+
+      setup(function() {
+        oldHash = window.location.hash;
+        window.location.hash = '#locked';
+      });
+
+      teardown(function() {
+        window.location.hash = oldHash;
+      });
+
+      test('incoming-locked screen init without layout set', function() {
+        CallScreen.init();
+        sinon.assert.called(CallScreen.showClock);
+        sinon.assert.called(CallScreen.initLockScreenSlide);
+        sinon.assert.called(CallScreen.render);
+      });
+
+      test('incoming-locked screen init with layout set', function() {
+        CallScreen.screen.dataset.layout = 'incoming-locked';
+        CallScreen.init();
+        sinon.assert.called(CallScreen.showClock);
+        sinon.assert.called(CallScreen.initLockScreenSlide);
+        sinon.assert.notCalled(CallScreen.render);
+      });
+    });
+  });
+
   suite('calls', function() {
     suite('setters', function() {
       test('cdmaCallWaiting should toggle the appropriate classes', function() {
@@ -277,6 +327,34 @@ suite('call screen', function() {
       setTimeout(function() {
         assert.equal(CallScreen.mainContainer.style.backgroundImage,
                      'url("' + fakeURL + '")');
+        done();
+      });
+    });
+  });
+
+  suite('background image setter from string', function() {
+    var realMozSettings;
+    var fakeImage =
+      'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAg' +
+      'IDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8' +
+      'QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ' +
+      'EBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARC';
+
+    setup(function() {
+      realMozSettings = navigator.mozSettings;
+      navigator.mozSettings = MockNavigatorSettings;
+      MockNavigatorSettings.mSettings['wallpaper.image'] = fakeImage;
+    });
+
+    teardown(function() {
+      navigator.mozSettings = realMozSettings;
+    });
+
+    test('should change background of the main container', function(done) {
+      CallScreen.setWallpaper();
+      setTimeout(function() {
+        assert.equal(CallScreen.mainContainer.style.backgroundImage,
+                     'url("' + fakeImage + '")');
         done();
       });
     });
@@ -727,6 +805,26 @@ suite('call screen', function() {
       CallScreen.stopTicker(durationNode);
       assert.isUndefined(durationNode.dataset.tickerId);
       assert.isFalse(durationNode.classList.contains('isTimer'));
+    });
+  });
+
+  suite('set end conference call', function() {
+    var fakeNode1 = document.createElement('section');
+    var fakeNode2 = document.createElement('section');
+    var fakeNode3 = document.createElement('section');
+
+    setup(function() {
+      CallScreen.moveToGroup(fakeNode1);
+      CallScreen.moveToGroup(fakeNode2);
+      CallScreen.moveToGroup(fakeNode3);
+    });
+
+    test('should set groupHangup to all nodes in group detail lists',
+    function() {
+      CallScreen.setEndConferenceCall();
+      assert.equal(fakeNode1.dataset.groupHangup, 'groupHangup');
+      assert.equal(fakeNode2.dataset.groupHangup, 'groupHangup');
+      assert.equal(fakeNode3.dataset.groupHangup, 'groupHangup');
     });
   });
 });

@@ -15,10 +15,10 @@
    * We should care about the need of testing,
    * and make all stateful objects become instance-able.
    *
-   * @param {LockScreen.intentionRouter} |ir|
+   * @param {LockScreen.intentionRouter} |ir| intentionRouter.
    * @param {Object} |opts| (Opional) addtional, options that may overwrite the
    *                        default settings.
-   *                        The options should follow the default settings above
+   *                        The options should follow default settings above.
    * @constructor
    */
   var LockScreenSlide = function(ir, opts) {
@@ -50,8 +50,8 @@
     },
 
     areas: {
-      camera: null,
-      unlock: null
+      left: null,
+      right: null
     },
 
     // The handle area can touch by the user.
@@ -66,10 +66,7 @@
       // Whether we need to auto extend the handle.
       autoExpand: {
         accState: 'normal', // In accelerating or not.
-        accFactorOriginal: 1.0,
-        accFactor: 1.0,     // Accelerate sliding if user's finger crossed.
-        accFactorMax: 1.3,
-        accFactorInterval: 0.02,
+        accFactor: 1.02,     // Accelerate sliding (y = x^accFactor).
         sentinelOffset: 40,  // How many pixels before reaching end.
         sentinelWidth: 0   // Max width - offset
       },
@@ -111,7 +108,7 @@
 
       // Most of them need to be initialized later.
       touch: {
-        direction: '',
+        id: '',
         touched: false,
         initX: -1,
         pageX: -1,
@@ -129,8 +126,8 @@
       area: 'lockscreen-area',
       canvas: 'lockscreen-canvas',
       areas: {
-        camera: 'lockscreen-area-camera',
-        unlock: 'lockscreen-area-unlock'
+        left: 'lockscreen-area-camera',
+        right: 'lockscreen-area-unlock'
       }
     },
 
@@ -150,7 +147,7 @@
    * @param {IntentionRouter} |ir| see LockScreen's intentionRouter.
    * @param {Object} |opts| (Opional) addtional, options that may overwrite the
    *                        default settings.
-   *                        The options should follow the default settings above
+   *                        The options should follow default settings above.
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype.initialize =
@@ -166,7 +163,7 @@
   /**
    * Overwrite settings recursively.
    *
-   * @param {Object} |options|
+   * @param {Object} |options| options for overwrite default settings.
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype._overwriteSettings =
@@ -190,7 +187,7 @@
   /**
    * The dispatcher. Unlocker would manager all its DOMs individually.
    *
-   * @param {event} |evt|
+   * @param {event} |evt| LockScreen Slide event.
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype.handleEvent =
@@ -211,11 +208,12 @@
 
         case 'touchstart':
             if (evt.target === this.area) {
+              this.states.touch.id = evt.touches[0].identifier;
               this._onSlideBegin(this._dpx(evt.touches[0].pageX));
+              window.addEventListener('touchend', this);
+              window.addEventListener('touchmove', this);
             }
             evt.preventDefault();
-            window.addEventListener('touchend', this);
-            window.addEventListener('touchmove', this);
           break;
 
         case 'touchmove':
@@ -230,13 +228,14 @@
           break;
 
         case 'touchend':
+          if (evt.changedTouches[0].identifier !== this.states.touch.id)
+            return;
           window.removeEventListener('touchmove', this);
           window.removeEventListener('touchend', this);
 
-          if (this.states.sliding) {
-            this._onSlideEnd();
-          }
-
+          this.states.sliding = false;
+          this._onSlideEnd();
+          this._resetTouchStates();
           this.overlay.classList.remove('touched');
           break;
       }
@@ -253,8 +252,8 @@
       this.overlay = document.getElementById(this.IDs.overlay);
       this.area = document.getElementById(this.IDs.area);
       this.canvas = document.getElementById(this.IDs.canvas);
-      this.areas.camera = document.getElementById(this.IDs.areas.camera);
-      this.areas.unlock = document.getElementById(this.IDs.areas.unlock);
+      this.areas.left = document.getElementById(this.IDs.areas.left);
+      this.areas.right = document.getElementById(this.IDs.areas.right);
 
       this.area.addEventListener('touchstart', this);
 
@@ -305,7 +304,7 @@
       this.center.x =
         this.canvas.offsetLeft + this.canvas.width >> 1;
       this.center.y =
-        this.canvas.offsetHeight + this.canvas.height >> 1;
+        this.canvas.offsetTop + this.canvas.height >> 1;
 
       this.handle.radius =
         this._dpx(this.handle.radius);
@@ -326,6 +325,7 @@
 
       // Draw the handle.
       this._resetHandle();
+      this._resetTouchStates();
 
       // We don't reset the arrows because it need to be draw while image
       // got loaded, which is a asynchronous process.
@@ -403,8 +403,6 @@
             if (prevState !== currentState)
               this.intentionRouter.nearRight(currentState, prevState);
           }
-          // TODO: XXX: Where we use the previous 'mtx' ?
-          mtx = this._accelerateSlide(tx, tx < expandSentinelL, slow);
       } else {
         var prevState = this.handle.autoExpand.accState;
         this.handle.autoExpand.accState = 'normal';
@@ -418,9 +416,8 @@
               this.intentionRouter.nearRight(currentState, prevState);
           }
         }
-        this.handle.autoExpand.accFactor =
-          this.handle.autoExpand.accFactorOriginal;
       }
+      mtx = this._accelerateSlide(tx);
 
       // Order matters.
       this._drawTrack();
@@ -445,11 +442,12 @@
       var boundaryL = center.x - this.handle.radius;
 
       if (tx > boundaryR || tx < boundaryL) {
+        this.states.sliding = false;
         return; // Do nothing.
       }
 
+      this.intentionRouter.unlockingStart();
       this.states.touch.initX = tx;
-
       this.states.sliding = true;
       this._lightIcons();
     };
@@ -461,6 +459,7 @@
    */
   LockScreenSlidePrototype._onSlideEnd =
     function lss_onSlideEnd() {
+
       var isLeft = this.states.touch.pageX - this.center.x < 0;
       var bounceEnd = (function _bounceEnd() {
         this._clearCanvas();
@@ -482,6 +481,7 @@
         setTimeout(bounceEnd, appLaunchDelay);
       }
 
+      this.intentionRouter.unlockingStop();
       this._darkIcons();
     };
 
@@ -519,31 +519,26 @@
       touch.prevX = pageX;
     };
 
-
   /**
    * Accelerate the slide when the finger is near the end.
    *
-   * @param {number} |tx|
-   * @param {boolean} |isLeft|
-   * @param {boolean} |inverse| (Optional) true if you want to slow rather
-   *                            than accelerate it.
+   * @param {number} |tx| The absolute coordinate of the touching position.
    * @return {number}
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype._accelerateSlide =
-    function lss_accelerateSlide(tx, isLeft, inverse) {
+    function lss_accelerateSlide(tx) {
+      var isLeft = tx - this.center.x < 0;
+      var dx = Math.abs(tx - this.center.x);
       var accFactor = this.handle.autoExpand.accFactor;
-      var accFactorMax = this.handle.autoExpand.accFactorMax;
-      var accFactorOriginal =
-        this.handle.autoExpand.accFactorOriginal;
-      var interval = this.handle.autoExpand.accFactorInterval;
-      var adjustedAccFactor = isLeft ? 1 / accFactor : accFactor;
-      if (!inverse && accFactor + interval < accFactorMax)
-        accFactor += interval;
-      if (inverse && accFactor - interval > accFactorOriginal)
-        accFactor -= interval;
-      this.handle.autoExpand.accFactor = accFactor;
-      return tx * adjustedAccFactor;
+      var acc = Math.pow(dx, accFactor);
+      var accTx = tx + acc;
+      if (isLeft)
+        accTx = tx - acc;
+
+      if (accTx < 0)
+        accTx = 0;
+      return accTx;
     };
 
   /**
@@ -613,14 +608,14 @@
     };
 
   /**
-   * Dark the camera and unlocking icons when user leave our LockScreen.
+   * Dark the left and right icons when user leave our LockScreen.
    *
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype._darkIcons =
     function lss_darkIcons() {
-      this.areas.camera.classList.add('dark');
-      this.areas.unlock.classList.add('dark');
+      this.areas.left.classList.add('dark');
+      this.areas.right.classList.add('dark');
     };
 
   /**
@@ -815,7 +810,7 @@
    * Return the mapping pixels according to the device pixel ratio.
    * This may need to be put int the shared/js.
    *
-   * @param {number} |px|
+   * @param {number} |px| original px distance.
    * @return {number}
    * @this {LockScreenSlide}
    */
@@ -825,25 +820,25 @@
     };
 
   /**
-   * Light the camera and unlocking icons when user touch on our LockScreen.
+   * Light the left and right icons when user touch on our LockScreen.
    *
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype._lightIcons =
     function lss_lightIcons() {
-      this.areas.camera.classList.remove('dark');
-      this.areas.unlock.classList.remove('dark');
+      this.areas.left.classList.remove('dark');
+      this.areas.right.classList.remove('dark');
     };
 
   /**
-   * Map absolution X and Y to canvas' X and Y.
+   * Map  and Y to canvas' X and Y.
    * Note this should only be used when user want to draw something
    * follow the user's input. If the canvans need adjust its position,
    * the absolute coordinates should be used.
    *
-   * @param {number} |x|
-   * @param {number} |y|
-   * @return {[number]} Array of single pair of X and Y
+   * @param {number} |x| absolution X.
+   * @param {number} |y| absolution Y.
+   * @return {[number]} Array of single pair of X and Y.
    * @this {LockScreenSlide}
    */
   LockScreenSlidePrototype._mapCoord =
@@ -885,6 +880,24 @@
       var canvas = this.canvas;
       var centerx = this.center.x;
       this._drawSlideTo(centerx);
+    };
+
+  /**
+   * Reset the states of touch after it's end.
+   *
+   * @this {LockScreenSlide}
+   */
+  LockScreenSlidePrototype._resetTouchStates =
+    function lss_resetTouchStates() {
+      this.states.touch = {
+        touched: false,
+        initX: this.center.x,
+        pageX: this.center.x,
+        pageY: this.center.y,
+        tx: 0,
+        prevX: this.center.x,
+        deltaX: 0
+      };
     };
 
   LockScreenSlide.prototype = LockScreenSlidePrototype;

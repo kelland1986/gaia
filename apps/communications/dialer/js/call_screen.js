@@ -115,11 +115,14 @@ var CallScreen = {
 
     this.calls.addEventListener('click', CallsHandler.toggleCalls.bind(this));
 
-    var callScreenHasLayout = !!this.screen.dataset.layout;
-    if ((window.location.hash === '#locked') && !callScreenHasLayout) {
-      CallScreen.render('incoming-locked');
+    if (window.location.hash === '#locked') {
+      this.showClock(new Date());
+      this.initLockScreenSlide();
+
+      if (!this.screen.dataset.layout) {
+        this.render('incoming-locked');
+      }
     }
-    CallScreen.showClock(new Date());
 
     this.setWallpaper();
 
@@ -127,6 +130,85 @@ var CallScreen = {
     window.addEventListener('resize', this.resizeHandler.bind(this));
 
     this.syncSpeakerEnabled();
+  },
+
+  initLockScreenSlide: function cs_initLockScreenSlide() {
+    // Setup incoming call screen slider
+    this.hangUpIcon = document.getElementById('lockscreen-area-hangup');
+    this.pickUpIcon = document.getElementById('lockscreen-area-pickup');
+
+    new LockScreenSlide(
+      // IntentionRouter
+      {
+        unlockerInitialize: function _unlockerInitialize() {
+          //Seems not necessary for incoming call screen.
+        },
+
+        activateRight: function _activateRight() {
+          CallsHandler.answer();
+        },
+
+        activateLeft: function _activateLeft() {
+          CallsHandler.end();
+        },
+
+        unlockingStart: function _unlockingStart() {
+          // Bug 956074: Needed to make sure the slider will work.
+        },
+
+        unlockingStop: function _unlockingStop() {
+          // Bug 956074: Needed to make sure the slider will work.
+        },
+
+        nearLeft: function _nearLeft(state, statePrev) {
+          if (state === 'accelerating') {
+            CallScreen.hangUpIcon.classList.add('triggered');
+          } else {
+            CallScreen.hangUpIcon.classList.remove('triggered');
+          }
+        },
+
+        nearRight: function _nearRight(state, statePrev) {
+          if (state === 'accelerating') {
+            CallScreen.pickUpIcon.classList.add('triggered');
+          } else {
+            CallScreen.pickUpIcon.classList.remove('triggered');
+          }
+        }
+      },
+      // Options
+      {
+        IDs: {
+          overlay: 'main-container',
+          areas: {
+            left: 'lockscreen-area-hangup',
+            right: 'lockscreen-area-pickup'
+          }
+        },
+
+        colors: {
+          left: {
+            touchedColor: '255, 0, 0',
+            touchedColorStop: '255, 178, 178'
+          },
+
+          right: {
+            touchedColor: '132, 200, 44',
+            touchedColorStop: '218, 238, 191'
+          }
+        },
+
+        resources: {
+          larrow: '/dialer/style/images/larrow.png',
+          rarrow: '/dialer/style/images/rarrow.png'
+        },
+        handle: {
+          autoExpand: {
+            sentinelOffset: 80
+          }
+        }
+      }
+    );
   },
 
   _wallpaperReady: false,
@@ -142,7 +224,10 @@ var CallScreen = {
     var self = this;
     var req = navigator.mozSettings.createLock().get('wallpaper.image');
     req.onsuccess = function cs_wi_onsuccess() {
-      var image = URL.createObjectURL(req.result['wallpaper.image']);
+      var wallpaperImage = req.result['wallpaper.image'];
+      var isString = (typeof wallpaperImage == 'string');
+      var image =
+        isString ? wallpaperImage : URL.createObjectURL(wallpaperImage);
       self.mainContainer.style.backgroundImage = 'url(' + image + ')';
       setTimeout(self._onWallpaperReady.bind(self));
     };
@@ -307,7 +392,7 @@ var CallScreen = {
   render: function cs_render(layout_type) {
     this.screen.dataset.layout = layout_type;
     if (layout_type !== 'connected') {
-      this.keypadButton.setAttribute('disabled', 'disabled');
+      this.disableKeypad();
     }
   },
 
@@ -416,15 +501,10 @@ var CallScreen = {
     delete durationNode.dataset.tickerId;
   },
 
-  // XXX: This is a workaround before bug 936982 is fixed.
-  // the last call quitting conference changes its status with one additional
-  // connected for now, namely disconnecting-->**connected**-->disconnected
-  // so we just hide disconnecting calls to prevent it from appearing on call
-  // screen again.
-  setCallsEndedInGroup: function cs_markEndOnCallsInGroup() {
+  setEndConferenceCall: function cs_setEndConferenceCall() {
     var callElems = this.groupCallsList.getElementsByTagName('SECTION');
     for (var i = 0; i < callElems.length; i++) {
-      callElems[i].classList.add('groupended');
+      callElems[i].dataset.groupHangup = 'groupHangup';
     }
   }
 };

@@ -84,7 +84,7 @@ function editPhoto(n) {
   });
 
   // Display the edit screen
-  setView(editView);
+  setView(LAYOUT_MODE.edit);
 
   // Set the default option buttons to correspond to those edits
   editOptionButtons.forEach(function(b) { b.classList.remove('selected'); });
@@ -313,11 +313,22 @@ function exitEditMode(saved) {
   // right next to the old one and we should go back to fullscreenView to view
   // the edited photo.
   if (saved) {
-    currentFileIndex = 0; // because the saved image will be newest
-    setView(thumbnailListView);
-  }
-  else
+    if (isPhone) {
+      setView(LAYOUT_MODE.list);
+    } else {
+      // After we sucessfully save a picture, we need to make sure that the
+      // current file will point to it. We need a flag for fileCreated(),
+      // so that the currentFileIndex will stay at 0 which is the newest one.
+      hasSaved = true;
+      // After insert sucessfully, db will call file created and setFile to
+      // latest file, then we go to fullscreen mode to see the edited picture.
+      // picture on tablet.
+      setView(LAYOUT_MODE.fullscreen);
+    }
+  } else {
+    setView(LAYOUT_MODE.fullscreen);
     showFile(currentFileIndex);
+  }
 }
 
 // When the user clicks the save button, we produce a full-size version
@@ -524,10 +535,6 @@ ImageEditor.prototype.displayCropOnlyPreview = function() {
 ImageEditor.prototype.generateNewPreview = function(callback) {
   var self = this;
 
-  // Create a preview image
-  var canvas = document.createElement('canvas');
-  var context = canvas.getContext('2d');
-
   // infer the previewHeight such that the aspect ratio stays the same
   var scalex = this.previewCanvas.width / this.source.width;
   var scaley = this.previewCanvas.height / this.source.height;
@@ -536,8 +543,11 @@ ImageEditor.prototype.generateNewPreview = function(callback) {
   var previewWidth = Math.floor(this.source.width * this.scale);
   var previewHeight = Math.floor(this.source.height * this.scale);
 
+  // Create a preview image
+  var canvas = document.createElement('canvas');
   canvas.width = previewWidth;
   canvas.height = previewHeight;
+  var context = canvas.getContext('2d');
 
   // Draw that region of the image into the canvas, scaling it down
   context.drawImage(this.original, this.source.x, this.source.y,
@@ -683,7 +693,7 @@ ImageEditor.prototype.getFullSizeBlob = function(type, done, progress) {
   var canvas = document.createElement('canvas');
   canvas.width = this.source.width; // "full size" is cropped image size
   canvas.height = this.source.height;
-  var context = canvas.getContext('2d');
+  var context = canvas.getContext('2d', { willReadFrequently: true });
   context.drawImage(this.original,
                     this.source.x, this.source.y,
                     this.source.width, this.source.height,
@@ -799,12 +809,11 @@ ImageEditor.prototype.showCropOverlay = function showCropOverlay(newRegion) {
   var self = this;
 
   var canvas = this.cropCanvas = document.createElement('canvas');
-  var context = this.cropContext = canvas.getContext('2d');
   canvas.id = 'edit-crop-canvas'; // for stylesheet
   this.container.appendChild(canvas);
-
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
+  var context = this.cropContext = canvas.getContext('2d');
 
   // Crop handle styles
   context.translate(15, 15);
@@ -1462,6 +1471,17 @@ ImageProcessor.prototype.destroy = function() {
   gl.deleteTexture(this.sourceTexture);
   gl.deleteBuffer(this.rectangleBuffer);
   gl.viewport(0, 0, 0, 0);
+
+  // Destroy webgl context explicitly. Not wait for GC cleaning up.
+  //
+  // http://www.khronos.org/registry/webgl/extensions/WEBGL_lose_context/
+  //
+  // We use loseContext() to let the context lost.
+  // It will release the buffer here.
+  var loseContextExt = gl.getExtension('WEBGL_lose_context');
+  if (loseContextExt) {
+    loseContextExt.loseContext();
+  }
 };
 
 ImageProcessor.prototype.draw = function(image, needsUpload,

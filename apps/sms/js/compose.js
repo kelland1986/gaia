@@ -325,6 +325,43 @@ var Compose = (function() {
       return content;
     },
 
+    /** Render draft
+     *
+     * @param {Draft} draft Draft to be loaded into the composer
+     *
+     */
+
+    fromDraft: function(draft) {
+      // Clear out the composer
+      this.clear();
+
+      // If we don't have a draft, return only having cleared the composer
+      if (!draft) {
+        return;
+      }
+
+      if (draft.subject) {
+        dom.subject.value = draft.subject;
+        this.toggleSubject();
+      }
+
+      // draft content is an array
+      draft.content.forEach(function(fragment) {
+        // If the fragment is an attachment
+        // use the stored content to instantiate a new Attachment object
+        // to be properly rendered after a cold start for the app
+        if (fragment.blob) {
+          fragment = new Attachment(fragment.blob, {
+            isDraft: true
+          });
+        }
+        // Append each fragment in order to the composer
+        Compose.append(fragment);
+      }, Compose);
+
+      this.focus();
+    },
+
     getText: function() {
       var out = this.getContent().filter(function(elem) {
         return (typeof elem === 'string');

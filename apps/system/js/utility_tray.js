@@ -31,7 +31,7 @@ var UtilityTray = {
     window.addEventListener('displayapp', this);
     window.addEventListener('appopening', this);
 
-    // Listen to the IME switcher shows/hide
+    // Firing when the keyboard and the IME switcher shows/hides.
     window.addEventListener('keyboardimeswitchershow', this);
     window.addEventListener('keyboardimeswitcherhide', this);
 
@@ -51,6 +51,7 @@ var UtilityTray = {
   startY: undefined,
   lastDelta: undefined,
   screenHeight: undefined,
+  screenWidth: undefined,
 
   handleEvent: function ut_handleEvent(evt) {
     switch (evt.type) {
@@ -62,6 +63,9 @@ var UtilityTray = {
       case 'keyboardchangecanceled':
       case 'simpinshow':
       case 'appopening':
+        if (Rocketbar.shown) {
+          Rocketbar.hide();
+        }
         if (this.shown) {
           this.hide();
         }
@@ -88,8 +92,6 @@ var UtilityTray = {
             evt.target !== this.statusbar &&
             evt.target !== this.grippy)
           return;
-
-        this.active = true;
 
         this.onTouchStart(evt.touches[0]);
         break;
@@ -118,7 +120,22 @@ var UtilityTray = {
   },
 
   onTouchStart: function ut_onTouchStart(touch) {
-    this.screenHeight = this.overlay.getBoundingClientRect().height;
+    var screenRect = this.overlay.getBoundingClientRect();
+    this.screenHeight = screenRect.height;
+    this.screenWidth = screenRect.width;
+
+    // Show the rocketbar if it's enabled,
+    // Give a slightly larger left area, than right.
+    if (Rocketbar.enabled && !this.shown &&
+        touch.pageX < this.screenWidth * 0.65) {
+      UtilityTray.hide();
+      Rocketbar.render();
+      return;
+    }
+
+    Rocketbar.hide();
+    this.active = true;
+
     this.startY = touch.pageY;
 
     this.screen.classList.add('utility-tray');

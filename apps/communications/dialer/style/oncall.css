@@ -721,6 +721,10 @@
     transition: background-color 0.2s ease;
   }
 
+  #calls #group-call-label {
+    padding-right: 3rem;
+  }
+
   #group-call .hangup-button,
   #calls:not(.big-duration) #group-call > .duration.isTimer,
   #group-call-details-list .fake-number,
@@ -867,6 +871,9 @@
     text-shadow: 0.1rem 0.1rem 0.3rem #000000;
     color: #fff;
   }
+
+  /* We may need to sync system lockscreen media query part for showing call
+     screen on larger screen size*/
 
   .merge-button {
     display: none;

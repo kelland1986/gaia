@@ -494,8 +494,7 @@ Icon.prototype = {
    */
   translate: function icon_translate() {
     var descriptor = this.descriptor;
-    if (descriptor.type === GridItemsFactory.TYPE.BOOKMARK ||
-        descriptor.customName)
+    if (descriptor.customName)
       return;
 
     var app = this.app;
@@ -506,13 +505,13 @@ Icon.prototype = {
     if (!manifest)
       return;
 
-    var localizedName;
+    var localizedName = manifest.name;
 
     if (descriptor.type === GridItemsFactory.TYPE.COLLECTION) {
       // try to translate, but fall back to current name
       // (translation might fail for custom collection name)
       localizedName = navigator.mozL10n.get(manifest.name) || manifest.name;
-    } else {
+    } else if (descriptor.type !== GridItemsFactory.TYPE.BOOKMARK) {
       var iconsAndNameHolder = manifest;
       var entryPoint = descriptor.entry_point;
       if (entryPoint)
@@ -750,6 +749,10 @@ Page.prototype = {
 
   FALLBACK_READY_EVENT_DELAY: 1000,
 
+  // After launching an app we disable the page during this time (ms)
+  // in order to prevent multiple open-app animations
+  DISABLE_TAP_EVENT_DELAY: 500,
+
   /*
    * Renders a page for a list of apps
    *
@@ -972,10 +975,16 @@ Page.prototype = {
   disableTap: function pg_disableTap(callback) {
     document.body.setAttribute('disabled-tapping', true);
 
+    var disableTapTimeout = null;
+
     var enableTap = function enableTap() {
       document.removeEventListener('visibilitychange', enableTap);
       document.removeEventListener('collectionopened', enableTap);
       window.removeEventListener('hashchange', enableTap);
+      if (disableTapTimeout !== null) {
+        window.clearTimeout(disableTapTimeout);
+        disableTapTimeout = null;
+      }
       document.body.removeAttribute('disabled-tapping');
       callback && callback();
     };
@@ -987,6 +996,10 @@ Page.prototype = {
     document.addEventListener('collectionopened', enableTap);
     // 3. Users click on home button quickly while app are opening
     window.addEventListener('hashchange', enableTap);
+    // 4. After this time out
+    disableTapTimeout = window.setTimeout(enableTap,
+        this.DISABLE_TAP_EVENT_DELAY);
+
   },
 
   /*

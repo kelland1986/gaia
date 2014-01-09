@@ -9,6 +9,11 @@ from gaiatest.apps.ui_tests.app import UiTests
 
 class TestKeyboardPredictiveKey(GaiaTestCase):
 
+    def setUp(self):
+        GaiaTestCase.setUp(self)
+        # enable auto-correction of keyboard
+        self.data_layer.set_setting('keyboard.autocorrect', True)
+
     def test_keyboard_predictive_key(self):
         self.ui_tests = UiTests(self.marionette)
         self.ui_tests.launch()
@@ -27,8 +32,7 @@ class TestKeyboardPredictiveKey(GaiaTestCase):
 
         # tap the first predictive word
         keyboard.tap_first_predictive_word()
-        self.marionette.switch_to_frame()
-        self.marionette.switch_to_frame(self.ui_tests.app.frame)
+        self.apps.switch_to_displayed_app()
         keyboard_page.switch_to_frame()
 
         # check if the word in the input field is the same as the expected word

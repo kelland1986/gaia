@@ -10,9 +10,20 @@ var IccHandler = function IccHandler() {
   var iccManager = null;
   var isSingleSIMApi = false;
   var iccs = {};
+  var sims = [];
+  var mobileConnections = null;
 
   var init = function init(domGenerator, cb) {
     iccManager = navigator.mozIccManager;
+    // Avoid any icc operation in devices that don't
+    // have icc (desktop, tablets, etc.)
+    if (!iccManager) {
+      if (typeof cb === 'function') {
+        cb();
+      }
+      return;
+    }
+    mobileConnections = navigator.mozMobileConnections || [];
     isSingleSIMApi = typeof iccManager.getIccById !== 'function';
 
     if (isSingleSIMApi) {
@@ -21,9 +32,13 @@ var IccHandler = function IccHandler() {
       iccManager.iccIds.forEach(function(iccId) {
         iccs[iccId] = iccManager.getIccById(iccId);
       });
+      for (var i = 0; i < mobileConnections.length; i++) {
+        sims[i] = iccs[mobileConnections[i].iccId] || null;
+      }
+
     }
 
-    domGenerator.setIccList(iccs);
+    domGenerator.setIccList(sims);
     domGenerator.generateDOM();
 
     subscribeToChanges(cb);
@@ -68,6 +83,7 @@ var IccHandler = function IccHandler() {
 
     return iccs[id];
   };
+
 
   return {
     'getStatus': getStatus,

@@ -41,24 +41,26 @@ var CostControlApp = (function() {
 
   var costcontrol, initialized = false;
   function checkSIMStatus(callback) {
+
+    var iccid = Common.dataSimIccId;
+    var dataSimIccInfo = Common.dataSimIcc;
     var cardState = checkCardState();
-    var iccid = IccHelper.iccInfo ? IccHelper.iccInfo.iccid : null;
 
     // SIM not ready
     if (cardState !== 'ready') {
       debug('SIM not ready:', cardState);
-      IccHelper.oncardstatechange = checkSIMStatus;
+      dataSimIccInfo.oncardstatechange = checkSIMStatus;
 
     // SIM is ready, but ICC info is not ready yet
     } else if (!Common.isValidICCID(iccid)) {
       debug('ICC info not ready yet');
-      IccHelper.oniccinfochange = checkSIMStatus;
+      dataSimIccInfo.oniccinfochange = checkSIMStatus;
 
     // All ready
     } else {
       debug('SIM ready. ICCID:', iccid);
-      IccHelper.oncardstatechange = undefined;
-      IccHelper.oniccinfochange = undefined;
+      dataSimIccInfo.oncardstatechange = undefined;
+      dataSimIccInfo.oniccinfochange = undefined;
       document.getElementById('message-handler').src = 'message_handler.html';
       Common.waitForDOMAndMessageHandler(window, startApp.bind(null, callback));
     }
@@ -68,7 +70,7 @@ var CostControlApp = (function() {
   // special situations such as 'pin/puk locked' or 'absent'.
   function checkCardState() {
     var state, cardState;
-    state = cardState = IccHelper.cardState;
+    state = cardState = Common.dataSimIcc.cardState;
 
     // SIM is absent
     if (!cardState || cardState === 'absent') {
@@ -179,7 +181,12 @@ var CostControlApp = (function() {
           return;
         }
         costcontrol = instance;
-        setupApp(callback);
+        if (!initialized) {
+          setupApp(callback);
+        } else {
+          loadSettings();
+          updateUI(callback);
+        }
       });
     }, _onNoICCID);
   }
@@ -189,27 +196,6 @@ var CostControlApp = (function() {
     isApplicationLocalized = true;
     if (initialized) {
       updateUI();
-    }
-  });
-
-  window.addEventListener('message', function handler_finished(e) {
-    if (e.origin !== Common.COST_CONTROL_APP) {
-      return;
-    }
-
-    var type = e.data.type;
-
-    if (type === 'fte_finished') {
-      window.removeEventListener('message', handler_finished);
-
-      document.getElementById('splash_section').
-        setAttribute('aria-hidden', 'true');
-
-      // Only hide the FTE view when everything in the UI is ready
-      startApp(function() {
-        document.getElementById('fte_view').classList.add('non-ready');
-        document.getElementById('fte_view').src = '';
-      });
     }
   });
 
@@ -269,7 +255,7 @@ var CostControlApp = (function() {
     document.addEventListener('visibilitychange',
       function _onVisibilityChange(evt) {
         if (!document.hidden && initialized) {
-          checkCardState();
+          checkCardState(Common.dataSimIcc);
         }
       }
     );
@@ -279,7 +265,7 @@ var CostControlApp = (function() {
 
     // Refresh UI when the user changes the SIM for data connections
     SettingsListener.observe('ril.data.defaultServiceId', 0, function() {
-      Common.loadDataSIMIccId(updateUI);
+      Common.loadDataSIMIccId(startApp);
     });
 
     initialized = true;
@@ -375,13 +361,40 @@ var CostControlApp = (function() {
   }
 
   function startFTE() {
+    window.addEventListener('message', function handler_finished(e) {
+      if (e.origin !== Common.COST_CONTROL_APP) {
+        return;
+      }
+
+      var type = e.data.type;
+
+      if (type === 'fte_finished') {
+        window.removeEventListener('message', handler_finished);
+
+        document.getElementById('splash_section').
+          setAttribute('aria-hidden', 'true');
+
+        // Only hide the FTE view when everything in the UI is ready
+        startApp(function() {
+          document.getElementById('fte_view').classList.add('non-ready');
+          document.getElementById('fte_view').src = '';
+        });
+      }
+    });
+
     var mode = ConfigManager.getApplicationMode();
     Common.startFTE(mode);
   }
 
   return {
     init: function() {
-      checkSIMStatus();
+      Common.loadDataSIMIccId(checkSIMStatus, function _errorNoSim() {
+        console.warn('Error when trying to get the ICC ID');
+        showSimErrorDialog('no-sim2');
+      });
+      // XXX: See bug 944342 -[Cost control] move all the process related to the
+      // network and data interfaces loading to the start-up process of CC
+      Common.loadNetworkInterfaces();
     },
     reset: function() {
       costcontrol = null;

@@ -38,7 +38,7 @@ var DownloadUI = (function() {
     this.name = name;
     this.classes = classes;
     this.isPlainMessage = isPlainMessage;
-    this.numberOfButtons = name === 'file_not_found' ? 1 : 2;
+    this.numberOfButtons = classes.indexOf('full') !== -1 ? 1 : 2;
   };
 
   var TYPES = {
@@ -50,7 +50,10 @@ var DownloadUI = (function() {
                                             ['danger']),
     FILE_NOT_FOUND: new DownloadType('file_not_found', ['recommend', 'full'],
                                      true),
-    FILE_OPEN_ERROR: new DownloadType('file_open_error', ['danger'])
+    FILE_OPEN_ERROR: new DownloadType('file_open_error', ['danger']),
+    NO_SDCARD: new DownloadType('no_sdcard_found', ['recommend', 'full'], true),
+    UNMOUNTED_SDCARD: new DownloadType('unmounted_sdcard', ['recommend',
+                                       'full'], true)
   };
 
   // Confirm dialog container
@@ -75,13 +78,26 @@ var DownloadUI = (function() {
     };
   };
 
+  function addConfirm() {
+    if (confirm !== null) {
+      confirm.innerHTML = '';
+      return;
+    }
+
+    confirm = document.createElement('form');
+    confirm.id = 'downloadConfirmUI';
+    confirm.setAttribute('role', 'dialog');
+    confirm.setAttribute('data-type', 'confirm');
+    document.body.appendChild(confirm);
+  }
+
   function removeConfirm() {
     if (confirm === null) {
       return;
     }
 
-    document.body.removeChild(confirm);
-    confirm = null;
+    confirm.innerHTML = '';
+    confirm.style.display = 'none';
   }
 
   // When users click or hold on home button the confirmation should be removed
@@ -91,9 +107,7 @@ var DownloadUI = (function() {
   function createConfirm(type, req, download) {
     var _ = navigator.mozL10n.get;
 
-    confirm = document.createElement('form');
-    confirm.setAttribute('role', 'dialog');
-    confirm.setAttribute('data-type', 'confirm');
+    addConfirm();
 
     var dialog = document.createElement('section');
 
@@ -151,7 +165,7 @@ var DownloadUI = (function() {
     dialog.appendChild(menu);
     confirm.appendChild(dialog);
 
-    document.body.appendChild(confirm);
+    confirm.style.display = 'block';
   }
 
   var styleSheets = [
@@ -184,7 +198,8 @@ var DownloadUI = (function() {
       if (type === null) {
         type = TYPES.STOPPED;
 
-        if (download.state === 'finalized') {
+        if (download.state === 'finalized' ||
+            download.state === 'stopped' && download.error !== null) {
           type = TYPES.FAILED;
         }
       }
