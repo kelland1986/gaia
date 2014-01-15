@@ -173,7 +173,7 @@ var NfcManager = {
     var state = this.NFC_HW_STATE_ENABLE_DISCOVERY;
     switch (evt.type) {
       case 'screenchange':
-        if (true === this.acceptNfcEvents()) {
+        if (true === ScreenManager.screenEnabled) {
           state = this.NFC_HW_STATE_ENABLE_DISCOVERY;
         } else {
           state = this.NFC_HW_STATE_DISABLE_DISCOVERY;
@@ -360,7 +360,7 @@ var NfcManager = {
 
     if (!this.acceptNfcEvents()) {
       this._debug(
-        'Ignoring NFC technology tag message. Screen state is disabled.');
+        'Ignoring NFC technology tag message. NFC is in disabled state.');
       return;
     }
     // UX: TODO
