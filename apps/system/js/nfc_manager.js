@@ -173,7 +173,7 @@ var NfcManager = {
     var state = this.NFC_HW_STATE_ENABLE_DISCOVERY;
     switch (evt.type) {
       case 'screenchange':
-        if (true === ScreenManager.screenEnabled) {
+        if (true === this.acceptNfcEvents()) {
           state = this.NFC_HW_STATE_ENABLE_DISCOVERY;
         } else {
           state = this.NFC_HW_STATE_DISABLE_DISCOVERY;
@@ -276,10 +276,9 @@ var NfcManager = {
   },
 
   handleNdefDiscovered:
-    function nm_handleNdefDiscovered(tech, session, ndefMsg) {
+    function nm_handleNdefDiscovered(tech, session, records) {
 
-      this._debug('handleNdefDiscovered: ' + JSON.stringify(ndefMsg));
-      var records = ndefMsg;
+      this._debug('handleNdefDiscovered: ' + JSON.stringify(records));
       var action = this.handleNdefMessage(records);
       if (action == null) {
         this._debug('Unimplemented. Handle Unknown type.');
@@ -292,12 +291,12 @@ var NfcManager = {
   },
 
   // NDEF only currently
-  handleP2P: function handleP2P(tech, sessionToken, ndefMsg) {
-    if (ndefMsg != null) {
+  handleP2P: function handleP2P(tech, sessionToken, records) {
+    if (records != null) {
        // Incoming P2P message carries a NDEF message. Dispatch
        // the NDEF message (this might bring another app to the
        // foreground).
-      this.handleNdefDiscovered(tech, sessionToken, ndefMsg);
+      this.handleNdefDiscovered(tech, sessionToken, records);
       return;
     }
 
@@ -360,38 +359,37 @@ var NfcManager = {
 
     if (!this.acceptNfcEvents()) {
       this._debug(
-        'Ignoring NFC technology tag message. NFC is in disabled state.');
+        'Ignoring NFC technology tag message. Screen state is disabled.');
       return;
     }
     // UX: TODO
     window.navigator.vibrate([25, 50, 125]);
 
     // Check for tech types:
-    this._debug('command.tech: ' + command.tech);
+    this._debug('command.techList: ' + command.techList);
     var techList = command.techList;
-    var ndefMsg = null;
-    if (command.ndef.length > 0) {
-      // Pick the first NDEF message for now.
-      ndefMsg = command.ndef[0];
+    var records = null;
+    if (command.records.length > 0) {
+      records = command.records;
     } else {
       this._debug('No NDEF Message sent to Technology Discovered');
     }
 
-    if (ndefMsg != null) {
+    if (records != null) {
       /* First check for handover messages that
        * are handled by the handover manager.
        */
-      var firstRecord = ndefMsg[0];
+      var firstRecord = records[0];
       if ((firstRecord.tnf == NDEF.tnf_well_known) &&
           NfcUtil.equalArrays(firstRecord.type, NDEF.rtd_handover_select)) {
         this._debug('Handle Handover Select');
-        NfcHandoverManager.handleHandoverSelect(ndefMsg);
+        NfcHandoverManager.handleHandoverSelect(records);
         return;
       }
       if ((firstRecord.tnf == NDEF.tnf_well_known) &&
           NfcUtil.equalArrays(firstRecord.type, NDEF.rtd_handover_request)) {
         this._debug('Handle Handover Request');
-        NfcHandoverManager.handleHandoverRequest(ndefMsg, command.sessionToken);
+        NfcHandoverManager.handleHandoverRequest(records, command.sessionToken);
         return;
       }
     }
@@ -412,10 +410,10 @@ var NfcManager = {
     // One shot try. Fallback directly to tag.
     switch (techList[0]) {
       case 'P2P':
-        this.handleP2P(techList[0], command.sessionToken, ndefMsg);
+        this.handleP2P(techList[0], command.sessionToken, records);
         break;
       case 'NDEF':
-        this.handleNdefDiscovered(techList[0], command.sessionToken, ndefMsg);
+        this.handleNdefDiscovered(techList[0], command.sessionToken, records);
         break;
       case 'NDEF_FORMATTABLE':
         this.handleNdefDiscoveredUseConnect(techList[0], command.sessionToken);
