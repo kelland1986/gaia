@@ -31,13 +31,16 @@
       "rules": {
         "manifestURLs": ["app://system.gaiamobile.org/manifest.webapp"]
       }
+    }
+  },
+  "datastores-access": {
+    "eme_store": {
+      "readonly": false,
+      "description": "Stores Everything.me data"
     },
-    "eme-client": {
-      "handler_path": "index.html",
-      "description": "Handles message from the E.me app.",
-      "rules": {
-        "manifestURLs": ["app://homescreen.gaiamobile.org/manifest.webapp"]
-      }
+    "places": {
+      "access": "readonly",
+      "description": "Stores data about browsing history."
     }
   }
 }

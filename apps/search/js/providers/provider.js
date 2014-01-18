@@ -17,7 +17,7 @@ Provider.prototype = {
    */
   init: function() {
     this.container = document.getElementById(this.name.toLowerCase());
-    this.container.addEventListener('click', this.click);
+    this.container.addEventListener('click', this.click.bind(this));
   },
 
   /**
@@ -31,6 +31,15 @@ Provider.prototype = {
    * Handler when a result is clicked
    */
   click: function() {},
+
+  /**
+   * Aborts any in-progress request.
+   */
+  abort: function() {
+    if (this.request && this.request.abort) {
+      this.request.abort();
+    }
+  },
 
   /**
    * Renders a set of results.

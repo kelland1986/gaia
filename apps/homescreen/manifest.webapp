@@ -57,12 +57,10 @@
   "messages": [
     { "alarm": "/index.html" }
   ],
-  "connections": {
-    "eme-api": {
-      "description": "Handles connections to the E.me api.",
-      "rules": {
-        "manifestURLs": ["app://search.gaiamobile.org/manifest.webapp"]
-      }
+  "datastores-owned": {
+    "eme_store": {
+      "access": "readwrite",
+      "description": "Stores Everything.me data"
     }
   }
 }

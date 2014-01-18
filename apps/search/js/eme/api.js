@@ -3,13 +3,15 @@
 
   function partnersAPI(eme) {
     var OK = 1;
-    var API_KEY = null;
     var API_URL = 'https://api.everything.me/partners/1.0/{resource}/';
+    var API_KEY = '79011a035b40ef3d7baeabc8f85b862f';
+
+    var deviceId = null;
 
     var self = this;
 
     this.init = function init(config) {
-      API_KEY = config.apiKey;
+      deviceId = config.deviceId;
 
       addApiMethod('Apps', 'search');
       addApiMethod('Search', 'suggestions');
@@ -33,19 +35,24 @@
      */
     function apiRequest(resource, options) {
       var url = API_URL.replace('{resource}', resource);
-      var params = 'apiKey=' + API_KEY + '&';
+      var payload = '';
 
-      if (options) {
-        for (var k in options) {
-          var v = options[k];
-          if (v !== null && v !== undefined) {
-            params += k + '=' + encodeURIComponent(options[k]) + '&';
-          }
+      options = options ? options : {};
+
+      // always send apiKey and deviceId
+      options.apiKey = API_KEY;
+      options.deviceId = deviceId;
+
+      for (var k in options) {
+        var v = options[k];
+        if (v !== null && v !== undefined) {
+          payload += k + '=' + encodeURIComponent(options[k]) + '&';
         }
       }
 
+      var httpRequest;
       var promise = new Promise(function done(resolve, reject) {
-        var httpRequest = new XMLHttpRequest();
+        httpRequest = new XMLHttpRequest();
         httpRequest.open('POST', url, true);
         httpRequest.setRequestHeader(
           'Content-Type', 'application/x-www-form-urlencoded');
@@ -72,8 +79,14 @@
         };
 
         httpRequest.withCredentials = true;
-        httpRequest.send(params);
+        httpRequest.send(payload);
       });
+
+      promise.abort = function() {
+        if (httpRequest.abort) {
+          httpRequest.abort();
+        }
+      };
 
       return promise;
     }

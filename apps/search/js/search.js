@@ -53,10 +53,7 @@
           function(connectionRequest) {
             var keyword = connectionRequest.keyword;
             var port = connectionRequest.port;
-            if (keyword === 'eme-client') {
-              port.onmessage = window.eme.onmessage;
-              port.start();
-            } else if (keyword === 'search') {
+            if (keyword === 'search') {
               port.onmessage = self.dispatchMessage.bind(self);
               port.start();
             }
@@ -91,12 +88,12 @@
      * Called when the user changes the search query
      */
     change: function(msg) {
-      clearTimeout(timeoutSearchWhileTyping);
+      clearTimeout(this.changeTimeout);
 
       var input = msg.data.input;
       var providers = this.providers;
 
-      timeoutSearchWhileTyping = setTimeout(function doSearch() {
+      this.changeTimeout = setTimeout(function doSearch() {
         for (var i in providers) {
           providers[i].search(input);
         }
@@ -114,8 +111,19 @@
      * Called when the user submits the search form
      */
     clear: function(msg) {
+      this.abort();
       for (var i in this.providers) {
         this.providers[i].clear();
+      }
+    },
+
+    /**
+     * Aborts all in-progress provider requests.
+     */
+    abort: function() {
+      clearTimeout(this.changeTimeout);
+      for (var i in this.providers) {
+        this.providers[i].abort();
       }
     },
 
@@ -123,6 +131,7 @@
      * Messages the parent container to close
      */
     close: function() {
+      this.abort();
       this._port.postMessage({'action': 'hide'});
     },
 
@@ -131,6 +140,15 @@
      */
     navigate: function(url) {
       window.open(url, '_blank', 'remote=true');
+    },
+
+    /**
+     * Tells the Places provider to update
+     */
+    syncPlaces: function() {
+      if ('Places' in this.providers) {
+        this.providers.Places.sync();
+      }
     },
 
     /**

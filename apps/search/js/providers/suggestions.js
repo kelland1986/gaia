@@ -34,11 +34,15 @@
 
     search: function(input) {
       this.clear();
-      var request = eme.api.Search.suggestions({
+      if (!eme.api.Search) {
+        return;
+      }
+
+      this.request = eme.api.Search.suggestions({
         'query': input
       });
 
-      request.then((function success(data) {
+      this.request.then((function success(data) {
         var items = data.response;
         if (items && items.length) {
           this.render(input, items);

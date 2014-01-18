@@ -596,31 +596,31 @@ suite('thread_list_ui', function() {
     });
 
     suite('Correctly displayed content', function() {
+      var now, message, li;
 
       setup(function() {
         this.sinon.stub(Threads, 'get').returns({
           hasDrafts: true
         });
+
+        now = Date.now();
+
+        message = MockMessages.sms({
+          delivery: 'delivered',
+          threadId: 1,
+          timestamp: now,
+          body: 'from a message'
+        });
       });
 
       test('Message newer than draft is used', function() {
-        var now = Date.now();
-
         this.sinon.stub(Drafts, 'byThreadId').returns({
           latest: {
             timestamp: now - 60000,
             content: ['from a draft']
           }
         });
-
-        var message = MockMessages.sms({
-          delivery: 'delivered',
-          threadId: 1,
-          timestamp: now,
-          body: 'from a message'
-        });
-
-        var li = ThreadListUI.createThread(
+        li = ThreadListUI.createThread(
           Thread.create(message)
         );
 
@@ -630,23 +630,14 @@ suite('thread_list_ui', function() {
       });
 
       test('Draft newer than content is used', function() {
-        var now = Date.now();
-
         this.sinon.stub(Drafts, 'byThreadId').returns({
           latest: {
             timestamp: now,
             content: ['from a draft']
           }
         });
-
-        var message = MockMessages.sms({
-          delivery: 'delivered',
-          threadId: 1,
-          timestamp: now - 60000,
-          body: 'from a message'
-        });
-
-        var li = ThreadListUI.createThread(
+        message.timestamp = now - 60000;
+        li = ThreadListUI.createThread(
           Thread.create(message)
         );
 
@@ -656,29 +647,35 @@ suite('thread_list_ui', function() {
       });
 
       test('Draft newer, but has no content', function() {
-        var now = Date.now();
-
         this.sinon.stub(Drafts, 'byThreadId').returns({
           latest: {
             timestamp: now,
             content: []
           }
         });
-
-        var message = MockMessages.sms({
-          delivery: 'delivered',
-          threadId: 1,
-          timestamp: now - 60000,
-          body: 'from a message'
-        });
-
-        var li = ThreadListUI.createThread(
+        message.timestamp = now - 60000;
+        li = ThreadListUI.createThread(
           Thread.create(message)
         );
 
         assert.equal(
           li.querySelector('.body-text').textContent, ''
         );
+      });
+
+      test('Last message type for draft', function() {
+        this.sinon.stub(Drafts, 'byThreadId').returns({
+          latest: {
+            timestamp: now,
+            content: [],
+            type: 'mms'
+          }
+        });
+        li = ThreadListUI.createThread(
+          Thread.create(message)
+        );
+
+        assert.ok(li.dataset.lastMessageType, 'mms');
       });
     });
   });
@@ -787,12 +784,38 @@ suite('thread_list_ui', function() {
 
   suite('renderDrafts', function() {
     var draft;
+    var thread, threadDraft;
 
     setup(function() {
       this.sinon.spy(ThreadListUI, 'renderThreads');
       this.sinon.spy(ThreadListUI, 'appendThread');
       this.sinon.spy(ThreadListUI, 'createThread');
+      this.sinon.spy(ThreadListUI, 'updateThread');
       this.sinon.spy(ThreadListUI, 'setContact');
+
+      var someDate = new Date(2013, 1, 1).getTime();
+      insertMockMarkup(someDate);
+
+      var nextDate = new Date(2013, 1, 2);
+      var message = MockMessages.sms({
+        threadId: 3,
+        timestamp: +nextDate
+      });
+
+      Threads.registerMessage(message);
+      thread = Threads.get(3);
+      ThreadListUI.appendThread(thread);
+
+      threadDraft = new Draft({
+        id: 102,
+        threadId: 3,
+        recipients: [],
+        content: ['An explicit id'],
+        timestamp: Date.now(),
+        type: 'sms'
+      });
+
+      Drafts.add(threadDraft);
 
       draft = new Draft({
         id: 101,
@@ -806,7 +829,7 @@ suite('thread_list_ui', function() {
       Drafts.add(draft);
 
       this.sinon.stub(Drafts, 'request', function(callback) {
-        callback([draft]);
+        callback([draft, threadDraft]);
       });
 
       ThreadListUI.draftLinks = new Map();
@@ -829,6 +852,10 @@ suite('thread_list_ui', function() {
 
     test('ThreadListUI.createThread is called', function() {
       sinon.assert.called(ThreadListUI.createThread);
+    });
+
+    test('ThreadListUI.updateThread is called', function() {
+      sinon.assert.called(ThreadListUI.updateThread);
     });
 
     test('ThreadListUI.setContact is called', function() {

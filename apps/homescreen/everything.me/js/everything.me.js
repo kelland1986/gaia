@@ -1,8 +1,6 @@
 'use strict';
 
 var EverythingME = {
-  apiKey: '1518c0001ff736528322f306f41f027d',
-
   activated: false,
   pendingEvent: undefined,
 
@@ -329,10 +327,15 @@ var EverythingME = {
   },
 
   initEvme: function EverythingME_initEvme() {
-    Evme.init({
-      'apiKey' : this.apiKey
-    }, EverythingME.onEvmeLoaded);
-    EvmeFacade = Evme;
+    var config = this.datastore.getConfig();
+    config.then(function resolve(emeConfig) {
+      EverythingME.log('EVME config from storage', JSON.stringify(emeConfig));
+
+      Evme.init({'deviceId': emeConfig.deviceId}, EverythingME.onEvmeLoaded);
+      EvmeFacade = Evme;
+    }, function reject(reason) {
+      EverythingME.warn('EVME config missing', reason);
+    });
   },
 
   onEvmeLoaded: function onEvmeLoaded() {
@@ -503,8 +506,8 @@ var EverythingME = {
       });
     } catch (ex) {
       deleteOld();
-      console.warn('[EVME migration] [' + oldKey + ']: error: ' + oldValue +
-                                                      ' (' + ex.message + ')');
+      EverythingME.warn('[EVME migration] [' + oldKey + ']: error: ' +
+                                            oldValue + ' (' + ex.message + ')');
       onComplete(false);
       return false;
     }
@@ -555,6 +558,11 @@ var EverythingME = {
     if (this.debug) {
       console.log.apply(window, arguments);
     }
+  },
+  warn: function log() {
+    if (this.debug) {
+      console.warn.apply(window, arguments);
+    }
   }
 };
 
@@ -568,64 +576,64 @@ var EvmeFacade = {
 };
 
 
-function MessageHandler() {
-  var self = this;
-  var searchPort = null;
+(function() {
+  'use strict';
 
-  this.onmessage = openSearchPort;
+  // datastore to use
+  var DS_NAME = 'eme_store';
 
-  // handle incoming eme-api connections
-  // first message triggers eme-client connection setup
-  navigator.mozSetMessageHandler('connection',
-    function(connectionRequest) {
-      var keyword = connectionRequest.keyword;
-      if (connectionRequest.keyword === 'eme-api') {
-        var port = connectionRequest.port;
-        port.onmessage = self.onmessage;
-        port.start();
-      }
-    }
-  );
+  // id of config object
+  var DS_CONFIG_ID = 1;
 
-  /**
-   * Opens the search eme-client port.
-   * We need to do this only after we receive a message
-   * Or else we will trigger launching of the search-results app.
-   */
-  function openSearchPort(msg) {
-    navigator.mozApps.getSelf().onsuccess = function() {
-      var app = this.result;
-      app.connect('eme-client').then(
-        function onConnectionAccepted(ports) {
-          ports.forEach(function(port) {
-            searchPort = port;
-          });
-          MessageHandler.onmessage = handleMessage;
-          handleMessage(msg);
-        },
-        function onConnectionRejected(reason) {
-          dump('Error connecting: ' + reason + '\n');
-        }
-      );
-    };
+  // see duplicate in search/eme.js
+  function generateDeviceId() {
+    var url = window.URL.createObjectURL(new Blob());
+    var id = url.replace('blob:', '');
+
+    window.URL.revokeObjectURL(url);
+
+    return 'fxos-' + id;
   }
 
-  function handleMessage(msg) {
-    var action = msg.data.action;
+  function emeDataStore() {
+  }
+  emeDataStore.prototype = {
+    // Get or create config shared with search/eme instance via DataStore API.
+    getConfig: function getConfig() {
+      var promise = new Promise(function done(resolve, reject) {
+        navigator.getDataStores(DS_NAME).then(function(stores) {
+          if (stores.length === 1) {
+            var db = stores[0];
 
-    switch (action) {
-      case 'init':
-        searchPort.postMessage({
-          'action': 'init',
-          'apiKey': EverythingME.apiKey
+            db.get(DS_CONFIG_ID).then(function success(emeConfig) {
+              // use existing config
+              if (emeConfig) {
+                resolve(emeConfig);
+              } else {
+                // store new config
+                emeConfig = {
+                  'deviceId': generateDeviceId()
+                };
+
+                db.add(emeConfig, DS_CONFIG_ID).then(function success(id) {
+                  resolve(emeConfig);
+                }, function error(e) {
+                  reject('config creation failed');
+                });
+              }
+            }, function error(e) {
+              reject(e.message);
+            });
+
+          } else {
+            reject('invalid datastore setup');
+          }
         });
-        break;
+      });
 
-      default:
-        break;
+      return promise;
     }
   };
 
-}
-
-new MessageHandler();
+  EverythingME.datastore = new emeDataStore();
+})();

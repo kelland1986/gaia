@@ -2,13 +2,14 @@
          MockL10n, MockContact, loadBodyHTML, MozSmsFilter,
          ThreadListUI, MockThreads, MockMessages, Threads, Compose,
          GroupView, ReportView, ThreadListUI, MockThreads, MockMessages,
-         Threads, Compose, Drafts, Draft */
+         Threads, Compose, Drafts, Draft, MockNotification, Notification */
 
 'use strict';
 
 requireApp('sms/js/utils.js');
 requireApp('sms/js/time_headers.js');
 
+requireApp('sms/shared/test/unit/mocks/mock_notification.js');
 
 requireApp('sms/test/unit/mock_attachment.js');
 requireApp('sms/test/unit/mock_async_storage.js');
@@ -41,6 +42,7 @@ var mocksHelperForMessageManager = new MocksHelper([
   'Drafts',
   'LinkActionHandler',
   'MozSmsFilter',
+  'Notification',
   'LinkActionHandler',
   'GroupView',
   'ReportView',
@@ -541,6 +543,7 @@ suite('message_manager.js >', function() {
   });
 
   suite('onHashChange', function() {
+    var notificationGetStub;
     setup(function() {
       this.sinon.spy(document.activeElement, 'blur');
       MessageManager.threadMessages = document.createElement('div');
@@ -554,6 +557,16 @@ suite('message_manager.js >', function() {
       this.sinon.spy(ReportView, 'reset');
       this.sinon.spy(MessageManager, 'handleActivity');
       this.sinon.stub(MessageManager, 'slide');
+      notificationGetStub = function notificationGet(options) {
+        return {
+          then: function(onSuccess, onError, onProgress) {
+            onSuccess([
+              new Notification('123456789', options)
+            ]);
+          }
+        };
+      };
+      this.sinon.stub(Notification, 'get', notificationGetStub);
       MessageManager.onHashChange();
     });
 
@@ -584,17 +597,8 @@ suite('message_manager.js >', function() {
         Threads.currentId = null;
       });
 
-      test('MessageManager.draft rendered after clearing composer', function() {
-        // renderMessages is passed as a callback to slide left
-        ThreadUI.updateHeaderData.yield();
-        MessageManager.slide.yield();
-        assert.ok(Compose.fromDraft.calledAfter(ThreadUI.renderMessages));
-        assert.ok(Compose.fromDraft.calledWith(MessageManager.draft));
-      });
-
       test('Thread latest draft rendered after clearing composer', function() {
         var draft = {};
-
         this.sinon.stub(Threads, 'get').returns({
           hasDrafts: true,
           drafts: {
@@ -605,9 +609,49 @@ suite('message_manager.js >', function() {
 
         ThreadUI.updateHeaderData.yield();
         MessageManager.slide.yield();
-        assert.ok(Compose.fromDraft.calledAfter(ThreadUI.renderMessages));
-        assert.ok(Compose.fromDraft.calledWith(draft));
+
+        sinon.assert.callOrder(ThreadUI.renderMessages, Compose.fromDraft);
+        sinon.assert.calledWith(Compose.fromDraft, draft);
         assert.equal(draft, MessageManager.draft);
+      });
+
+      test('Thread latest draft rendered if not in thread', function() {
+        var draft = {
+          content: 'AAA'
+        };
+        this.sinon.stub(Threads, 'get').returns({
+          hasDrafts: true,
+          drafts: {
+            latest: draft
+          }
+        });
+
+        ThreadUI.updateHeaderData.yield();
+        MessageManager.slide.yield();
+
+        sinon.assert.callOrder(ThreadUI.renderMessages, Compose.fromDraft);
+        sinon.assert.calledWith(Compose.fromDraft, draft);
+        assert.equal(draft, MessageManager.draft);
+
+      });
+
+      test('Thread latest draft not rendered if in thread', function() {
+        ThreadUI.inThread = true;
+        var draft = {
+          content: 'AAA'
+        };
+        this.sinon.stub(Threads, 'get').returns({
+          hasDrafts: true,
+          drafts: {
+            latest: draft
+          }
+        });
+
+        ThreadUI.updateHeaderData.yield();
+        MessageManager.slide.yield();
+
+        sinon.assert.notCalled(Compose.fromDraft);
+        sinon.assert.neverCalledWith(Compose.fromDraft, draft);
       });
     });
 
@@ -641,12 +685,14 @@ suite('message_manager.js >', function() {
       });
 
       suite('> Switch to #thread=100', function() {
+        var closeSpy;
         setup(function() {
           // reset states
           MessageManager.threadMessages.classList.add('new');
           MessageManager.slide.reset();
           ThreadUI.updateHeaderData.reset();
 
+          closeSpy = this.sinon.spy(MockNotification.prototype, 'close');
           this.threadId = MockThreads.currentId = 100;
           window.location.hash = '#thread=' + this.threadId;
           MessageManager.onHashChange();
@@ -663,6 +709,15 @@ suite('message_manager.js >', function() {
           assert.ok(
             ThreadListUI.mark.calledWith(this.threadId, 'read')
           );
+        });
+        test('calls Notification.get() on correct tag', function() {
+          assert.ok(
+            Notification.get.calledWith(
+              {tag: 'threadId:' + this.threadId})
+          );
+        });
+        test('calls Notification.close()', function() {
+          sinon.assert.calledOnce(closeSpy);
         });
         test('calls updateHeaderData', function() {
           assert.ok(
@@ -775,10 +830,8 @@ suite('message_manager.js >', function() {
 
   suite('onVisibilityChange() >', function() {
     var isDocumentHidden;
-    var spy;
 
     suiteSetup(function() {
-      spy = sinon.spy(ThreadUI, 'saveDraft');
       Object.defineProperty(document, 'hidden', {
         configurable: true,
         get: function() {
@@ -791,30 +844,118 @@ suite('message_manager.js >', function() {
       delete document.hidden;
     });
 
+    setup(function() {
+      this.sinon.spy(ThreadUI, 'saveDraft');
+    });
+
     teardown(function() {
       isDocumentHidden = false;
     });
 
-    test('draft save on visibility change from new message', function() {
-      window.location.hash = '#new';
-      isDocumentHidden = true;
-      MessageManager.onVisibilityChange();
+    suite('Draft saved: content AND recipients exist', function() {
+      setup(function() {
+        this.sinon.stub(Compose, 'isEmpty').returns(false);
+      });
 
-      assert.isTrue(spy.calledOnce);
-      assert.isTrue(spy.calledWithMatch({preserve: true}));
-      assert.equal(ThreadUI.recipients.length, 0);
+      test('new: has message', function() {
+        window.location.hash = '#new';
+
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.calledOnce(ThreadUI.saveDraft);
+        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+      });
+
+      test('new: has message, has recipients', function() {
+        window.location.hash = '#new';
+
+        ThreadUI.recipients.length = 1;
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.calledOnce(ThreadUI.saveDraft);
+        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+      });
+
+      test('thread: has message', function() {
+        window.location.hash = '#thread=1';
+
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.calledOnce(ThreadUI.saveDraft);
+        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+      });
     });
 
-    test('draft save on visibility change from thread', function() {
-      window.location.hash = '#thread-1';
-      isDocumentHidden = true;
-      MessageManager.onVisibilityChange();
+    suite('Draft saved: content OR recipients exist', function() {
+      test('new: has message, no recipients', function() {
+        window.location.hash = '#new';
 
-      assert.isTrue(spy.calledOnce);
-      assert.isTrue(spy.calledWithMatch({preserve: true}));
-      assert.equal(ThreadUI.recipients.length, 0);
+        this.sinon.stub(Compose, 'isEmpty').returns(false);
+        ThreadUI.recipients.length = 0;
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.calledOnce(ThreadUI.saveDraft);
+        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+      });
+
+      test('new: no message, has recipients', function() {
+        window.location.hash = '#new';
+
+        this.sinon.stub(Compose, 'isEmpty').returns(true);
+        ThreadUI.recipients.length = 1;
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.calledOnce(ThreadUI.saveDraft);
+        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+      });
     });
 
+    suite('Draft not saved: content or recipients do not exist', function() {
+      setup(function() {
+        this.sinon.stub(Compose, 'isEmpty').returns(true);
+        ThreadUI.recipients.length = 0;
+      });
+
+      test('new: no message', function() {
+        window.location.hash = '#new';
+
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.notCalled(ThreadUI.saveDraft);
+      });
+
+      test('new: no message, no recipients', function() {
+        window.location.hash = '#new';
+
+        ThreadUI.recipients.length = 0;
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.notCalled(ThreadUI.saveDraft);
+      });
+
+      test('thread: no message', function() {
+        window.location.hash = '#thread=1';
+
+        isDocumentHidden = true;
+
+        MessageManager.onVisibilityChange();
+
+        sinon.assert.notCalled(ThreadUI.saveDraft);
+      });
+    });
   });
-
 });

@@ -808,7 +808,7 @@ suite('thread_ui.js >', function() {
       setup(function() {
         var segmentInfo = {
           segments: 1,
-          charsAvailableInLastSegment: 20
+          charsAvailableInLastSegment: 25
         };
 
         updateCounter.call(this, segmentInfo);
@@ -831,9 +831,9 @@ suite('thread_ui.js >', function() {
       });
     });
 
-    suite('in first segment, less than 10 chars left >', function() {
+    suite('in first segment, less than 20 chars left >', function() {
       var segment = 1,
-          availableChars = 10;
+          availableChars = 20;
 
       setup(function() {
         var segmentInfo = {
@@ -1088,10 +1088,28 @@ suite('thread_ui.js >', function() {
     });
 
     suite('when trying to pass the limit...', function() {
+      var clock;
       setup(function() {
+        clock = this.sinon.useFakeTimers();
         subject.value = '1234567890123456789012345678901234567890'; // 40 char
+        clock.tick(0);
         // Event is launched on keypress
-        subject.dispatchEvent(new CustomEvent('keypress'));
+        subject.dispatchEvent(new CustomEvent('keyup'));
+      });
+
+      teardown(function() {
+        clock.restore();
+      });
+
+      test('should create a timeout', function() {
+        assert.isFalse(!ThreadUI.timeouts.subjectLengthNotice);
+      });
+
+      test('banner should be hidden after an amount of secs.', function(done) {
+        assert.isFalse(banner.classList.contains('hide'));
+        clock.tick(3100);
+        assert.isTrue(banner.classList.contains('hide'));
+        done();
       });
 
       test('should be visible', function() {
@@ -1108,10 +1126,10 @@ suite('thread_ui.js >', function() {
         assert.isTrue(banner.classList.contains('hide'));
       });
 
-      test('should be visible if focus comes back', function() {
+      test('should not be visible if focus comes back.', function() {
         subject.dispatchEvent(new CustomEvent('blur'));
         subject.dispatchEvent(new CustomEvent('focus'));
-        assert.isFalse(banner.classList.contains('hide'));
+        assert.isTrue(banner.classList.contains('hide'));
       });
     });
   });
@@ -2974,8 +2992,8 @@ suite('thread_ui.js >', function() {
       // Dispatch custom event for testing long press
       link.dispatchEvent(contextMenuEvent);
       assert.ok(MockOptionMenu.calls.length, 1);
-      // Is first element of the menu 'delete'?
-      assert.equal(MockOptionMenu.calls[0].items[0].l10nId, 'delete');
+      // Is first element of the menu 'forward'?
+      assert.equal(MockOptionMenu.calls[0].items[0].l10nId, 'forward');
     });
   });
 
@@ -3727,6 +3745,30 @@ suite('thread_ui.js >', function() {
       assert.isTrue(spy.calledOnce);
     });
 
+    suite('sendMMS errors', function() {
+      setup(function() {
+        this.sinon.spy(MessageManager, 'sendMMS');
+        this.sinon.spy(MockErrorDialog.prototype, 'show');
+
+        ThreadUI.recipients.add({
+          number: '999'
+        });
+
+        Compose.append(mockAttachment(512));
+
+        sendButton.click();
+      });
+
+      test('NotFoundError', function() {
+        MessageManager.sendMMS.callArg(2, { name: 'NotFoundError' });
+        sinon.assert.notCalled(MockErrorDialog.prototype.show);
+      });
+
+      test('Generic error', function() {
+        MessageManager.sendMMS.callArg(2, { name: 'GenericError' });
+        sinon.assert.called(MockErrorDialog.prototype.show);
+      });
+    });
   });
 
   suite('Contact Picker Behavior(contactPickButton)', function() {
@@ -3918,13 +3960,23 @@ suite('thread_ui.js >', function() {
       assert.isNull(MessageManager.draft);
     });
 
-    test('preserve draft for replacement', function() {
+    test('preserve pre-existing draft for replacement', function() {
       var draft = {id: 55};
       MessageManager.draft = draft;
       ThreadUI.saveDraft({preserve: true});
 
       assert.isNotNull(MessageManager.draft);
       assert.equal(MessageManager.draft, draft);
+    });
+
+    test('preserve new draft for replacement', function() {
+      MessageManager.draft = null;
+      ThreadUI.saveDraft({preserve: true});
+
+      assert.isNotNull(MessageManager.draft);
+      assert.deepEqual(MessageManager.draft.recipients, ['999']);
+      assert.equal(MessageManager.draft.content, 'foo');
+      assert.equal(MessageManager.draft.threadId, null);
     });
 
     test('has entered content and recipients', function() {
@@ -4324,6 +4376,50 @@ suite('thread_ui.js >', function() {
       test('should show settings options last', function() {
         assert.equal(options[options.length - 2].l10nId, 'settings');
       });
+    });
+  });
+
+  suite('getMessageBubble(element) > ', function() {
+    var tree, li, section, span;
+
+    setup(function() {
+      tree = document.createElement('div');
+
+      tree.innerHTML = [
+        '<div id="thread-messages">',
+          '<ul>',
+            '<li data-message-id="1">',
+              '<section class="bubble">',
+                '<span>.</span>',
+              '</section>',
+            '</li>',
+          '</ul>',
+        '</div>'
+      ].join();
+
+      span = tree.querySelector('span');
+      section = tree.querySelector('section');
+      li = tree.querySelector('li');
+    });
+
+    test('Finds the bubble (event target is lower)', function() {
+      var data = ThreadUI.getMessageBubble(span);
+
+      assert.equal(data.node, section);
+      assert.equal(data.id, 1);
+    });
+
+    test('Finds the bubble (event target is bubble)', function() {
+      var data = ThreadUI.getMessageBubble(section);
+
+      assert.equal(data.node, section);
+      assert.equal(data.id, 1);
+    });
+
+    test('Does not find the bubble (event target is higher)', function() {
+      var data = ThreadUI.getMessageBubble(li);
+
+      assert.equal(data, null);
     });
   });
 });

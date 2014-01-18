@@ -3,7 +3,8 @@
 
 /*global ThreadListUI, ThreadUI, Threads, SMIL, MozSmsFilter, Compose,
          Utils, LinkActionHandler, Contacts, Attachment, GroupView,
-         ReportView, Utils, LinkActionHandler, Contacts, Attachment, Drafts */
+         ReportView, Utils, LinkActionHandler, Contacts, Attachment, Drafts,
+         Notification */
 
 /*exported MessageManager */
 
@@ -106,7 +107,11 @@ var MessageManager = {
     // save a message draft if necessary
     if (document.hidden) {
       var hash = window.location.hash;
-      if (hash === '#new' || hash.startsWith('#thread=')) {
+
+      // Auto-save draft if the user has entered anything
+      // in the composer.
+      if ((hash === '#new' || hash.startsWith('#thread=')) &&
+          (!Compose.isEmpty() || ThreadUI.recipients.length)) {
         ThreadUI.saveDraft({preserve: true});
       }
     }
@@ -327,22 +332,22 @@ var MessageManager = {
           // hashchanges from #group-view back to #thread=n
           // are considered "in thread" and should not
           // trigger a complete re-rendering of the messages
-          // in the thread.
+          // or draft in the thread.
           if (!ThreadUI.inThread) {
             ThreadUI.inThread = true;
+
+            // Render messages
             ThreadUI.renderMessages(threadId);
-          }
-          // Ensures fromDraft is always called after
-          // ThreadUI.cleanFields as MessageManager.slide is async
-          var draft = MessageManager.draft;
-          var thread = Threads.get(threadId);
 
-          if (!draft && thread.hasDrafts) {
-            draft = thread.drafts.latest;
-            MessageManager.draft = draft;
+            // Populate draft if there is one
+            var thread = Threads.get(threadId);
+            if (thread.hasDrafts) {
+              MessageManager.draft = thread.drafts.latest;
+              Compose.fromDraft(MessageManager.draft);
+            } else {
+              MessageManager.draft = null;
+            }
           }
-
-          Compose.fromDraft(draft);
         };
 
         // if we were previously composing a message - remove the class
@@ -353,6 +358,20 @@ var MessageManager = {
         }
 
         ThreadListUI.mark(threadId, 'read');
+
+        var targetTag = 'threadId:' + threadId;
+        Notification.get({tag: targetTag})
+          .then(
+            function onSuccess(notifications) {
+              for (var i = 0; i < notifications.length; i++) {
+                notifications[i].close();
+              }
+            },
+            function onError(reason) {
+              console.error('Notification.get(tag: ' + targetTag + '): ' +
+                reason);
+            }
+          );
 
         // Update Header
         ThreadUI.updateHeaderData(function headerUpdated() {
