@@ -366,12 +366,11 @@ var NfcManager = {
     window.navigator.vibrate([25, 50, 125]);
 
     // Check for tech types:
-    this._debug('command.tech: ' + command.tech);
+    this._debug('command.techList: ' + command.techList);
     var techList = command.techList;
-    var ndefMsg = null;
-    if (command.ndef.length > 0) {
-      // Pick the first NDEF message for now.
-      ndefMsg = command.ndef[0];
+    var records = null;
+    if (command.records.length > 0) {
+      records = command.records;
     } else {
       this._debug('No NDEF Message sent to Technology Discovered');
     }
@@ -411,10 +410,10 @@ var NfcManager = {
     // One shot try. Fallback directly to tag.
     switch (techList[0]) {
       case 'P2P':
-        this.handleP2P(techList[0], command.sessionToken, ndefMsg);
+        this.handleP2P(techList[0], command.sessionToken, records);
         break;
       case 'NDEF':
-        this.handleNdefDiscovered(techList[0], command.sessionToken, ndefMsg);
+        this.handleNdefDiscovered(techList[0], command.sessionToken, records);
         break;
       case 'NDEF_FORMATTABLE':
         this.handleNdefDiscoveredUseConnect(techList[0], command.sessionToken);
