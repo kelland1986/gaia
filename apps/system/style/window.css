@@ -1,6 +1,6 @@
 #windows > .appWindow,
 #windows > .activityWindow {
-  position: fixed;
+  position: absolute;
   border: 0;
   margin: 0;
   padding: 0;
@@ -13,6 +13,8 @@
 
   background-repeat: no-repeat;
   background-position: center center;
+
+  transform: translateX(0);
 }
 
 @media not all and (-moz-physical-home-button) {
@@ -129,8 +131,8 @@
 
 /* Invoking app moves out */
 @keyframes invokingApp {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-20%); }
+  0%   { transform: translateX(0); opacity: 1 }
+  100% { transform: translateX(-20%); opacity: 0.25}
 }
 
 /* Invoked app moves in */
@@ -207,6 +209,13 @@
   width: 100%;
 }
 
+#screen.software-button-enabled:not(.active-statusbar) > #windows > .appWindow.fullscreen-app {
+  top: 0;
+  bottom: 5rem;
+  height: calc(100% - 5rem);
+  width: 100%;
+}
+
 @keyframes closeApp {
   0%   { transform: scale(1.0); opacity: 1;}
   100% { transform: scale(0.01); opacity: 0;}
@@ -234,6 +243,10 @@
 .appWindow > iframe {
   z-index: 1;
   visibility: visible;
+}
+
+.appWindow > .contextmenu {
+  z-index: 2;
 }
 
 .appWindow > .modal-dialog {
@@ -274,7 +287,12 @@
   display: none;
 }
 
+.appWindow > .contextmenu {
+  display: none;
+}
+
 .appWindow > .modal-dialog.visible,
+.appWindow > .contextmenu.visible,
 .appWindow > .authentication-dialog.visible,
 .authentication-dialog > .authentication-dialog-http.visible {
   display: block;
@@ -303,6 +321,11 @@
 
 .appWindow > .modal-dialog > form.visible {
   display: block;
+}
+
+.appWindow > form[role="dialog"][data-type="action"],
+.appWindow > form[role="dialog"][data-type="object"] {
+  top: 2rem;
 }
 
 .appWindow > .screenshot-overlay {
@@ -349,17 +372,21 @@
 }
 
 /* Edges */
+#screen.edges #windows > .appWindow {
+  box-shadow: -0.5rem 0 rgba(0, 0, 0, 0.5);
+}
+
 #windows > .appWindow.inside-edges {
   opacity: 1;
   transform: translateX(0);
 }
 
 #windows > .appWindow.outside-edges-left {
-  opacity: 1;
+  opacity: 0.25;
   transform: translateX(-20%);
 }
 
 #windows > .appWindow.outside-edges-right {
   opacity: 1;
-  transform: translateX(100%);
+  transform: translateX(calc(100% + 1rem));
 }

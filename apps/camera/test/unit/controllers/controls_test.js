@@ -2,14 +2,8 @@
 /*global req*/
 'use strict';
 
-suite.skip('controllers/controls', function() {
+suite('controllers/controls', function() {
   var Controller;
-
-  // Sometimes setup via the
-  // test agent can take a while,
-  // so we need to bump timeout
-  // to prevent test failure.
-  this.timeout(3000);
 
   suiteSetup(function(done) {
     var self = this;
@@ -18,12 +12,10 @@ suite.skip('controllers/controls', function() {
 
     req([
       'controllers/controls',
-      'camera',
       'vendor/view',
       'activity'
-    ], function(controlsController, camera, View, activity) {
+    ], function(controlsController, View, activity) {
       Controller = self.modules.controller = controlsController;
-      self.modules.camera = camera;
       self.modules.View = View;
       self.modules.activity = activity;
       done();
@@ -32,11 +24,14 @@ suite.skip('controllers/controls', function() {
 
   setup(function() {
     var View = this.modules.View;
-    var Camera = this.modules.camera;
     var Activity = this.modules.activity;
 
     this.app = {
-      camera: new Camera(),
+      camera: {
+        on: sinon.spy(),
+        state: { on: sinon.spy() },
+        get: sinon.stub().withArgs('mode').returns('photo')
+      },
       activity: new Activity(),
       views: {
         viewfinder: new View(),
@@ -44,15 +39,13 @@ suite.skip('controllers/controls', function() {
       }
     };
 
-    sinon.stub(this.app.camera, 'on');
-    sinon.stub(this.app.camera, 'getMode', function() { return 'camera'; });
     this.app.views.controls.set = sinon.spy();
   });
 
   suite('ControlsController()', function() {
     test('Should set the mode to the current camera mode', function() {
       this.controller = new Controller(this.app);
-      assert.isTrue(this.app.views.controls.set.calledWith('mode', 'camera'));
+      assert.isTrue(this.app.views.controls.set.calledWith('mode', 'photo'));
     });
   });
 

@@ -15,7 +15,6 @@ Keyboards.es = {
     l: '£ l·l',
     n: 'ń',
     y: '¥',
-    r: 'R$ ',
     '.': ',¿?¡!;:·',
     ':)': ':) :D :( ;D :* :/'
     /* '.com': '.es .org .eu' XXX: commented to avoid overflows for the demo */
@@ -44,7 +43,7 @@ Keyboards.es = {
   ],
   alternateLayout: {
     alt: {
-      '€': '$ £ ¥ R$',
+      '€': '$ £ ¥',
       '0': 'º',
       '1': '1º 1ª',
       '2': '2º 2ª',

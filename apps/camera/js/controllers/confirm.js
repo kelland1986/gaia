@@ -8,15 +8,10 @@ define(function(require, exports, module) {
  */
 
 var prepareBlob = require('utils/prepare-preview-blob');
-var ConfirmView = require('views/confirm');
 var debug = require('debug')('controller:confirm');
+var resizeImage = require('utils/resizeimage');
+var ConfirmView = require('views/confirm');
 var bindAll = require('utils/bindAll');
-
-/**
- * Locals
- */
-
-var proto = ConfirmController.prototype;
 
 /**
  * Exports
@@ -31,16 +26,16 @@ module.exports = function(options) {
  *
  * @param {Object} options
  */
-function ConfirmController(options) {
+function ConfirmController(app) {
   debug('initializing');
-  this.activity = options.activity;
-  this.camera = options.camera;
-  this.container = options.el;
+  this.activity = app.activity;
+  this.container = app.el;
+  this.app = app;
 
   // Allow these dependencies
   // to be injected if need be.
-  this.ConfirmView = options.ConfirmView || ConfirmView;
-  this.prepareBlob = options.prepareBlob || prepareBlob;
+  this.ConfirmView = app.ConfirmView || ConfirmView;
+  this.prepareBlob = app.prepareBlob || prepareBlob;
 
   bindAll(this);
   this.bindEvents();
@@ -51,9 +46,9 @@ function ConfirmController(options) {
  * Bind callbacks to required events.
  *
  */
-proto.bindEvents = function() {
-  this.camera.on('newimage', this.onNewImage);
-  this.camera.on('newvideo', this.onNewVideo);
+ConfirmController.prototype.bindEvents = function() {
+  this.app.on('newimage', this.onNewImage);
+  this.app.on('newvideo', this.onNewVideo);
 };
 
 /**
@@ -66,11 +61,11 @@ proto.bindEvents = function() {
  * @param  {Object} data
  *
  */
-proto.onNewImage = function(data) {
+ConfirmController.prototype.onNewImage = function(data) {
   if (!this.activity.active) { return; }
 
-  var activity = this.activity;
   var confirm = new this.ConfirmView();
+  var activity = this.activity;
   var camera = this.camera;
   var blob = data.blob;
 
@@ -84,21 +79,36 @@ proto.onNewImage = function(data) {
   this.prepareBlob(blob, confirm.showImage);
 
   function onSelectClick() {
-    camera._resizeBlobIfNeeded(blob, function(resized) {
-      activity.postResult({
-        type: 'image/jpeg',
-        blob: resized
-      });
-    });
+    var width = activity.data.width;
+    var height = activity.data.height;
+    var needsResizing = width || height;
+
+    if (!needsResizing) {
+      post(blob);
+      return;
+    }
+
+    resizeImage({
+      blob: blob,
+      width: width,
+      height: height
+    }, post);
   }
 
   function onRetakeClick() {
     confirm.destroy();
     camera.resumePreview();
   }
+
+  function post(blob) {
+    activity.postResult({
+      type: 'image/jpeg',
+      blob: blob
+    });
+  }
 };
 
-proto.onNewVideo = function(data) {
+ConfirmController.prototype.onNewVideo = function(video) {
   if (!this.activity.active) { return; }
 
   var ConfirmView = this.ConfirmView;
@@ -110,15 +120,15 @@ proto.onNewVideo = function(data) {
     .render()
     .appendTo(this.container)
     .setupMediaFrame()
-    .showVideo(data)
+    .showVideo(video)
     .on('click:select', onSelectClick)
     .on('click:retake', onRetakeClick);
 
   function onSelectClick() {
     activity.postResult({
       type: 'video/3gpp',
-      blob: data.blob,
-      poster: data.poster.blob
+      blob: video.blob,
+      poster: video.poster.blob
     });
   }
 

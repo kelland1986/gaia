@@ -24,11 +24,15 @@
 
     search: function(input) {
       this.clear();
-      var request = eme.api.Apps.search({
+      if (!eme.api.Apps) {
+        return;
+      }
+
+      this.request = eme.api.Apps.search({
         'query': input
       });
 
-      request.then((function resolve(data) {
+      this.request.then((function resolve(data) {
         var response = data.response;
         if (response && response.apps && response.apps.length) {
           var results = response.apps.map(function each(app) {

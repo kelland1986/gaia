@@ -111,10 +111,16 @@
         this.updateSimPinUI(cardIndex);
       }.bind(this));
     },
+    updateSimSecurityDescUI: function(enabled) {
+      window.navigator.mozL10n.localize(this.simSecurityDesc, enabled ?
+        'enabled' : 'disabled');
+      this.simSecurityDesc.dataset.l10nId = enabled ? 'enabled' : 'disabled';
+    },
     handleEvent: function(evt) {
       var target = evt.target;
       var cardIndex = target.dataset && target.dataset.simIndex;
       var type = target.dataset && target.dataset.type;
+      var self = this;
 
       switch (type) {
         case 'checkSimPin':
@@ -125,7 +131,26 @@
           // TODO:
           // remember to update SimPinDialog for DSDS structure
           this.simPinDialog.show('change_pin', {
-            cardIndex: cardIndex
+            cardIndex: cardIndex,
+            // show toast after user successfully change pin
+            onsuccess: function toastOnSuccess() {
+              var toast;
+              if (self.isSingleSim()) {
+                toast = {
+                  messageL10nId: 'simPinChangedSuccessfully',
+                  latency: 3000,
+                  useTransition: true
+                };
+              } else {
+                toast = {
+                  messageL10nId: 'simPinChangedSuccessfullyWithIndex',
+                  messageL10nArgs: {'index': cardIndex + 1},
+                  latency: 3000,
+                  useTransition: true
+                };
+              }
+              Toaster.showToast(toast);
+            }
           });
           break;
       }
@@ -145,6 +170,7 @@
               // successful unlock puk will be in simcard lock enabled state
               checkbox.checked = true;
               self.updateSimPinUI(cardIndex);
+              self.updateSimSecurityDescUI(true);
             },
             oncancel: function() {
               checkbox.checked = !enabled;
@@ -157,6 +183,7 @@
           this.simPinDialog.show(action, {
             cardIndex: cardIndex,
             onsuccess: function() {
+              self.updateSimSecurityDescUI(enabled);
               self.updateSimPinUI(cardIndex);
             },
             oncancel: function() {

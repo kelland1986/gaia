@@ -11,12 +11,6 @@ var bindAll = require('utils/bindAll');
 var debug = require('debug')('controller:controls');
 
 /**
- * Locals
- */
-
-var proto = ControlsController.prototype;
-
-/**
  * Exports
  */
 
@@ -31,15 +25,13 @@ function ControlsController(app) {
   this.activity = app.activity;
   this.camera = app.camera;
   this.app = app;
-
-  // Bind context
   bindAll(this);
   this.bindEvents();
   this.setup();
   debug('initialized');
 }
 
-proto.bindEvents = function() {
+ControlsController.prototype.bindEvents = function() {
   var controls = this.controls;
   var camera = this.camera;
 
@@ -47,9 +39,9 @@ proto.bindEvents = function() {
   camera.on('focusFailed', controls.enableButtons);
   camera.on('previewResumed', controls.enableButtons);
   camera.on('preparingToTakePicture', controls.disableButtons);
-  camera.state.on('change:videoElapsed', this.onVideoTimeUpdate);
-  camera.state.on('change:recording', this.onRecordingChange);
-  camera.state.on('change:mode', this.onCameraModeChange);
+  camera.on('change:videoElapsed', this.onVideoTimeUpdate);
+  camera.on('change:recording', this.onRecordingChange);
+  camera.on('change:mode', this.onCameraModeChange);
 
   // Respond to UI events
   controls.on('click:switch', this.onSwitchButtonClick);
@@ -60,10 +52,9 @@ proto.bindEvents = function() {
   debug('events bound');
 };
 
-proto.setup = function() {
+ControlsController.prototype.setup = function() {
   var activity = this.activity;
   var controls = this.controls;
-  var mode = this.camera.getMode();
   var isCancellable = activity.active;
   var showCamera = !activity.active || activity.allowedTypes.image;
   var showVideo = !activity.active || activity.allowedTypes.video;
@@ -74,21 +65,22 @@ proto.setup = function() {
   // or the application is in 'secure mode'.
   var showGallery = !activity.active && !this.app.inSecureMode;
 
-  controls.set('mode', mode);
+  controls.set('mode', this.camera.get('mode'));
   controls.set('gallery', showGallery);
   controls.set('cancel', isCancellable);
   controls.set('switchable', isSwitchable);
 };
 
-proto.onCameraModeChange = function(value) {
+ControlsController.prototype.onCameraModeChange = function(value) {
   this.controls.set('mode', value);
+  debug('camera mode change: %s', value);
 };
 
-proto.onRecordingChange = function(value) {
+ControlsController.prototype.onRecordingChange = function(value) {
   this.controls.set('recording', value);
 };
 
-proto.onVideoTimeUpdate = function(value) {
+ControlsController.prototype.onVideoTimeUpdate = function(value) {
   this.controls.setVideoTimer(value);
 };
 
@@ -99,7 +91,7 @@ proto.onVideoTimeUpdate = function(value) {
  * back in.
  *
  */
-proto.onSwitchButtonClick = function() {
+ControlsController.prototype.onSwitchButtonClick = function() {
   var controls = this.controls;
   var viewfinder = this.viewfinder;
   var camera = this.camera;
@@ -128,7 +120,7 @@ proto.onSwitchButtonClick = function() {
  * that initiated the activity.
  *
  */
-proto.onCancelButtonClick = function() {
+ControlsController.prototype.onCancelButtonClick = function() {
   this.activity.cancel();
 };
 
@@ -138,7 +130,7 @@ proto.onCancelButtonClick = function() {
  * is pressed.
  *
  */
-proto.onGalleryButtonClick = function() {
+ControlsController.prototype.onGalleryButtonClick = function() {
   var MozActivity = window.MozActivity;
 
   // Can't launch the gallery if the lockscreen is locked.
@@ -160,9 +152,14 @@ proto.onGalleryButtonClick = function() {
  * button is pressed.
  *
  */
-proto.onCaptureButtonClick = function() {
+ControlsController.prototype.onCaptureButtonClick = function() {
   var position = this.app.geolocation.position;
   this.camera.capture({ position: position });
+
+  // Disable controls for 500ms to
+  // prevent rapid fire button bashing.
+  this.controls.disableButtons();
+  setTimeout(this.controls.enableButtons, 500);
 };
 
 });

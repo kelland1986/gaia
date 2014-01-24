@@ -101,6 +101,10 @@ var CardsView = (function() {
       }}));
   }
 
+  function fireCardViewClosed() {
+    window.dispatchEvent(new CustomEvent('cardviewclosed'));
+  }
+
   // Build and display the card switcher overlay
   // Note that we rebuild the switcher each time we need it rather
   // than trying to keep it in sync with app launches.  Performance is
@@ -128,6 +132,8 @@ var CardsView = (function() {
 
     // Return early if inRocketbar and there are no apps besides homescreen
     if (Object.keys(runningApps).length < 2 && inRocketbar) {
+      // Fire a cardchange event to notify the rocketbar that there are no cards
+      fireCardViewClosed();
       return;
     } else if (inRocketbar) {
       screenElement.classList.add('task-manager');
@@ -451,7 +457,6 @@ var CardsView = (function() {
     }
     // Make the cardsView overlay inactive
     cardsView.classList.remove('active');
-    screenElement.classList.remove('task-manager');
     cardsViewShown = false;
 
     // And remove all the cards from the document after the transition
@@ -461,6 +466,7 @@ var CardsView = (function() {
       cardsList.innerHTML = '';
       prevCardStyle = currentCardStyle = nextCardStyle = currentCard =
       prevCard = nextCard = deltaX = null;
+      screenElement.classList.remove('task-manager');
     }
     if (removeImmediately) {
       removeCards();
@@ -469,7 +475,7 @@ var CardsView = (function() {
       cardsView.addEventListener('transitionend', removeCards);
     }
 
-    fireCardChange();
+    fireCardViewClosed();
   }
 
   function cardSwitcherIsShown() {

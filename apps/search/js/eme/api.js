@@ -6,21 +6,47 @@
     var API_URL = 'https://api.everything.me/partners/1.0/{resource}/';
     var API_KEY = '79011a035b40ef3d7baeabc8f85b862f';
 
-    var self = this;
+    var deviceId = null;
 
     this.init = function init(config) {
-      addApiMethod('Apps', 'search');
-      addApiMethod('Search', 'suggestions');
-      addApiMethod('Search', 'bgimage');
+      deviceId = config.deviceId;
+
+      this.Apps = Apps();
+      this.Search = Search();
     };
 
-    function addApiMethod(service, method) {
-      if (self[service] === undefined) {
-        self[service] = {};
+    function Apps() {
+      var service = 'Apps';
+      var MAX_QUERY_LENGTH = 128;
+
+      function search(options) {
+        var method = 'search';
+
+        if (!!options.query && options.query.length > MAX_QUERY_LENGTH) {
+          options.query = options.query.substr(0, MAX_QUERY_LENGTH);
+        }
+        return apiRequest(service, method, options);
       }
 
-      self[service][method] = function apiMethod(options) {
-        return apiRequest(service + '/' + method, options);
+      return {
+        search: search
+      };
+    }
+
+    function Search() {
+      var service = 'Search';
+
+      function suggestions(options) {
+        return apiRequest(service, 'suggestions', options);
+      }
+
+      function bgimage(options) {
+        return apiRequest(service, 'bgimage', options);
+      }
+
+      return {
+        suggestions: suggestions,
+        bgimage: bgimage
       };
     }
 
@@ -29,21 +55,27 @@
      * Returns a promise which will be resolved/reject on success/error
      * respectively
      */
-    function apiRequest(resource, options) {
+    function apiRequest(service, method, options) {
+      var resource = service + '/' + method;
       var url = API_URL.replace('{resource}', resource);
-      var params = 'apiKey=' + API_KEY + '&';
+      var payload = '';
 
-      if (options) {
-        for (var k in options) {
-          var v = options[k];
-          if (v !== null && v !== undefined) {
-            params += k + '=' + encodeURIComponent(options[k]) + '&';
-          }
+      options = options ? options : {};
+
+      // always send apiKey and deviceId
+      options.apiKey = API_KEY;
+      options.deviceId = deviceId;
+
+      for (var k in options) {
+        var v = options[k];
+        if (v !== null && v !== undefined) {
+          payload += k + '=' + encodeURIComponent(options[k]) + '&';
         }
       }
 
+      var httpRequest;
       var promise = new Promise(function done(resolve, reject) {
-        var httpRequest = new XMLHttpRequest();
+        httpRequest = new XMLHttpRequest();
         httpRequest.open('POST', url, true);
         httpRequest.setRequestHeader(
           'Content-Type', 'application/x-www-form-urlencoded');
@@ -70,8 +102,14 @@
         };
 
         httpRequest.withCredentials = true;
-        httpRequest.send(params);
+        httpRequest.send(payload);
       });
+
+      promise.abort = function() {
+        if (httpRequest.abort) {
+          httpRequest.abort();
+        }
+      };
 
       return promise;
     }

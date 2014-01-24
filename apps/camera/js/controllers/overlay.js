@@ -10,12 +10,6 @@ var bindAll = require('utils/bindAll');
 var debug = require('debug')('controller:overlay');
 
 /**
- * Locals
- */
-
-var proto = OverlayController.prototype;
-
-/**
  * Exports
  */
 
@@ -31,28 +25,32 @@ function OverlayController(app) {
     return new OverlayController(app);
   }
 
-  debug('initializing');
   this.activity = app.activity;
-  this.camera = app.camera;
+  this.storage = app.storage;
   this.overlays = [];
   bindAll(this);
-
-  // Events
-  this.camera.state.on('change:storage', this.onStorageChange);
+  this.storage.on('statechange', this.onStorageStateChange);
   debug('initialized');
 }
 
-proto.onStorageChange = function(value) {
+/**
+ * Respond to storage `statechange`
+ * events by inserting or destroying
+ * overlays from the app.
+ *
+ * @param  {String} value  ['nospace'|'shared'|'unavailable'|'available']
+ */
+OverlayController.prototype.onStorageStateChange = function(value) {
+  debug('storage state change: \'%s\'', value);
   if (value === 'available') {
     this.destroyOverlays();
     return;
   }
-
   this.insertOverlay(value);
 };
 
-proto.insertOverlay = function(value) {
-  var data = this.getOverlayData(value);
+OverlayController.prototype.insertOverlay = function(type) {
+  var data = this.getOverlayData(type);
   var activity = this.activity;
 
   if (!data) {
@@ -61,7 +59,7 @@ proto.insertOverlay = function(value) {
 
   var isClosable = activity.active;
   var overlay = new Overlay({
-    type: value,
+    type: type,
     closable: isClosable,
     data: data
   });
@@ -75,13 +73,21 @@ proto.insertOverlay = function(value) {
     });
 
   this.overlays.push(overlay);
+  debug('inserted \'%s\' overlay', type);
 };
 
-proto.getOverlayData = function(value) {
+/**
+ * Get the overlay data required
+ * to render a specific type of overlay.
+ *
+ * @param  {String} type
+ * @return {Object}
+ */
+OverlayController.prototype.getOverlayData = function(type) {
   var l10n = navigator.mozL10n;
   var data = {};
 
-  switch (value) {
+  switch (type) {
     case 'unavailable':
       data.title = l10n.get('nocard2-title');
       data.body = l10n.get('nocard2-text');
@@ -111,7 +117,7 @@ proto.getOverlayData = function(value) {
  *
  * @return {undefined}
  */
-proto.onStorageSettingsClick = function() {
+OverlayController.prototype.onStorageSettingsClick = function() {
   var MozActivity = window.MozActivity;
   this.mozActivity = new MozActivity({
     name: 'configure',
@@ -122,11 +128,15 @@ proto.onStorageSettingsClick = function() {
   });
 };
 
-proto.destroyOverlays = function() {
+/**
+ * Destroy all overlays.
+ */
+OverlayController.prototype.destroyOverlays = function() {
   this.overlays.forEach(function(overlay) {
     overlay.destroy();
   });
   this.overlays = [];
+  debug('destroyed overlays');
 };
 
 });

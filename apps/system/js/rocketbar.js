@@ -57,16 +57,18 @@ var Rocketbar = {
     var input = document.getElementById('search-input');
     var self = this;
     input.addEventListener('input', function onInput(e) {
-      if (!input.value) {
-        self.searchReset.classList.add('hidden');
-      } else {
-        self.searchReset.classList.remove('hidden');
+      self.updateResetButton();
+
+      // If the task manager is shown, hide it
+      if (this.screen.classList.contains('task-manager')) {
+        window.dispatchEvent(new CustomEvent('taskmanagerhide'));
       }
+
       self._port.postMessage({
         action: 'change',
         input: input.value
       });
-    });
+    }.bind(this));
     this.searchForm.addEventListener('submit', function onSubmit(e) {
       e.preventDefault();
       self._port.postMessage({
@@ -83,6 +85,9 @@ var Rocketbar = {
     switch (e.type) {
       case 'cardchange':
         this.searchInput.value = e.detail.title;
+        return;
+      case 'cardviewclosed':
+          this.searchInput.focus();
         return;
       case 'keyboardchange':
         // When the keyboard is opened make sure to not resize
@@ -122,11 +127,18 @@ var Rocketbar = {
         this.searchReset.classList.add('hidden');
         break;
       case 'search-input':
-        window.dispatchEvent(new CustomEvent('taskmanagerhide'));
+        if (e.type === 'blur') {
+          this.screen.classList.remove('rocketbar-focus');
+          return;
+        }
+        this.screen.classList.add('rocketbar-focus');
+
         // If the current text is not a URL, clear it.
         if (UrlHelper.isNotURL(this.searchInput.value)) {
           this.searchInput.value = '';
         }
+
+        this.updateResetButton();
         break;
       default:
         break;
@@ -141,7 +153,13 @@ var Rocketbar = {
     // Hide task manager when we focus on search bar
     this.searchInput.addEventListener('focus', this);
 
+    this.searchInput.addEventListener('blur', this);
+
     window.addEventListener('cardchange', this);
+    window.addEventListener('cardviewclosed', this);
+    window.addEventListener('apptitlechange', this);
+    window.addEventListener('applocationchange', this);
+
     this.searchCancel.addEventListener('click', this);
     // Prevent default on mousedown
     this.searchReset.addEventListener('mousedown', this);
@@ -164,6 +182,17 @@ var Rocketbar = {
       this.searchManifestURL = url.match(/(^.*?:\/\/.*?\/)/)[1] +
         'manifest.webapp';
     }.bind(this));
+  },
+
+  /**
+   * Displays or hides the reset button as necessary
+   */
+  updateResetButton: function() {
+    if (!this.searchInput.value) {
+      this.searchReset.classList.add('hidden');
+    } else {
+      this.searchReset.classList.remove('hidden');
+    }
   },
 
   /**

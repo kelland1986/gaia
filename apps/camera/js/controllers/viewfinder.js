@@ -9,12 +9,6 @@ var bindAll = require('utils/bindAll');
 var debug = require('debug')('controller:viewfinder');
 
 /**
- * Locals
- */
-
-var proto = ViewfinderController.prototype;
-
-/**
  * Exports
  */
 
@@ -40,31 +34,28 @@ function ViewfinderController(app) {
   debug('initialized');
 }
 
-proto.bindEvents = function() {
-  this.camera.on('cameraChange', this.onCameraChange);
+ViewfinderController.prototype.bindEvents = function() {
+  this.camera.on('configured', this.onConfigured);
+  this.camera.on('change:mode', this.onConfigured);
   this.viewfinder.on('click', this.onViewfinderClick);
 };
 
-/**
- * The viewfinder size is updated
- * when the camera is changed.
- *
- * HACK: The viewfinder view has a
- * dependency on the camera.js module
- * due to legacy architecture.
- *
- * @param  {MozCamera} camera
- */
-proto.onCameraChange = function(camera) {
-  this.viewfinder.setPreviewSize(camera, this.camera);
+ViewfinderController.prototype.onConfigured = function() {
+  debug('camera configured');
+  this.viewfinder.updatePreview(this.camera.previewSize,
+                                this.camera.get('selectedCamera') === 1);
+  this.camera.loadStreamInto(this.viewfinder.el, onStreamLoaded);
+  function onStreamLoaded(stream) {
+    debug('stream loaded %d ms after dom began loading',
+    Date.now() - window.performance.timing.domLoading);
+  }
 };
 
-proto.onViewfinderClick = function() {
-  var recording = this.camera.state.get('recording');
+ViewfinderController.prototype.onViewfinderClick = function() {
+  var recording = this.camera.get('recording');
 
-  // We will just ignore because the
-  // filmstrip shouldn't be shown while
-  // Camera is recording.
+  // The filmstrip shouldn't be
+  // shown while camera is recording.
   if (recording || this.activity.active) {
     return;
   }

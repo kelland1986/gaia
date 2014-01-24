@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>FxAccounts testing tools</title>
     <!-- We don't need localization for this app. -->
-    <link href="../shared/style_unstable/progress_activity.css" rel="stylesheet" type="text/css">
+    <link href="../shared/style/progress_activity.css" rel="stylesheet" type="text/css">
     <script defer type="text/javascript" src="/shared/js/fxa_iac_client.js"></script>
     <script defer type="text/javascript" src="/js/app.js"></script>
     <link rel="stylesheet" type="text/css" href="style/style.css">
@@ -17,10 +17,14 @@
         <button id="logout">Logout</button>
         <button id="changePassword" disabled>ChangePassword</button>
       </menu>
-      
+
       <section id="result">
-        <h1> RESULT:</h1>
+        <h1>RESULT:</h1>
         <p id="result-text"></p>
+      </section>
+
+      <section id="events">
+        <p id="events-text"></p>
       </section>
     </section>
     <!-- Progress overlay -->

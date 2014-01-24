@@ -2,18 +2,11 @@
 /*global req*/
 'use strict';
 
-suite.skip('controllers/camera', function() {
+suite('controllers/camera', function() {
+  var modules = {};
   var Controller;
 
-  // Sometimes setup via the
-  // test agent can take a while,
-  // so we need to bump timeout
-  // to prevent test failure.
-  this.timeout(3000);
-
   suiteSetup(function(done) {
-    var self = this;
-    this.modules = {};
 
     req([
       'controllers/camera',
@@ -21,21 +14,23 @@ suite.skip('controllers/camera', function() {
       'activity',
       'vendor/view',
       'vendor/evt'
-    ], function(controller, camera, View, activity, evt) {
-      Controller = self.modules.controller = controller;
-      self.modules.camera = camera;
-      self.modules.view = View;
-      self.modules.activity = activity;
-      self.modules.evt = evt;
+    ], function(controller, Camera, View, activity, evt) {
+      Controller = modules.controller = controller;
+      modules.activity = activity;
+      modules.camera = Camera;
+      modules.view = View;
+      modules.evt = evt;
       done();
     });
   });
 
   setup(function() {
-    var Activity = this.modules.activity;
-    var Camera = this.modules.camera;
-    var View = this.modules.view;
-    var evt = this.modules.evt;
+    var Activity = modules.activity;
+    var Camera = modules.camera;
+    var View = modules.view;
+    var evt = modules.evt;
+
+    this.sandbox = sinon.sandbox.create();
 
     // Mock app
     this.app = evt.mix({
@@ -47,9 +42,12 @@ suite.skip('controllers/camera', function() {
       }
     });
 
-    sinon.stub(this.app.camera, 'setCaptureMode');
-    sinon.stub(this.app.camera, 'getPreferredSizes');
+    this.sandbox.stub(this.app.camera);
     this.app.views.filmstrip.clear = sinon.spy();
+  });
+
+  teardown(function() {
+    this.sandbox.restore();
   });
 
   suite('CameraController()', function() {
@@ -65,14 +63,14 @@ suite.skip('controllers/camera', function() {
 
     test('Should set the capture mode to \'camera\' by default', function() {
       this.controller = new Controller(this.app);
-      assert.isTrue(this.app.camera.setCaptureMode.calledWith('camera'));
+      assert.isTrue(this.app.camera.set.calledWith('mode', 'photo'));
     });
 
     test('Should set the capture mode to the mode' +
          'specified by the activity if present', function() {
       this.app.activity.mode = 'video';
       this.controller = new Controller(this.app);
-      assert.isTrue(this.app.camera.setCaptureMode.calledWith('video'));
+      assert.isTrue(this.app.camera.set.calledWith('mode', 'video'));
     });
 
     test('Should setup camera on app `boot`', function() {

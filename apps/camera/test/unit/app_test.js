@@ -1,19 +1,20 @@
-/*jshint maxlen:false*/
 /*global req*/
 'use strict';
 
 suite('app', function() {
+  var modules = {};
 
   suiteSetup(function(done) {
-    var modules = this.modules = {};
     req([
       'app',
+      'camera',
       'vendor/view',
       'geolocation',
       'activity'
-    ], function(App, View, GeoLocation, Activity) {
+    ], function(App, Camera, View, GeoLocation, Activity) {
       modules.app = App;
       modules.view = View;
+      modules.camera = Camera;
       modules.geolocation = GeoLocation;
       modules.activity = Activity;
       done();
@@ -38,10 +39,11 @@ suite('app', function() {
   };
 
   setup(function() {
-    var View = this.modules.view;
-    var Activity = this.modules.activity;
-    var GeoLocation = this.modules.geolocation;
-    var App = this.modules.app;
+    var View = modules.view;
+    var Activity = modules.activity;
+    var GeoLocation = modules.geolocation;
+    var Camera = modules.camera;
+    var App = modules.app;
 
     var options = this.options = {
       doc: mocks.doc(),
@@ -49,8 +51,11 @@ suite('app', function() {
       el: document.createElement('div'),
       geolocation: new GeoLocation(),
       activity: new Activity(),
-      camera: {},
+      camera: new Camera(),
       sounds: {},
+      storage: {
+        once: sinon.spy()
+      },
       views: {
         viewfinder: new View({ name: 'viewfinder' }),
         focusRing: new View({ name: 'focusring' }),
@@ -72,6 +77,7 @@ suite('app', function() {
     this.sandbox = sinon.sandbox.create();
 
     // Stub out all methods
+    this.sandbox.stub(options.camera);
     this.sandbox.stub(options.activity);
     this.sandbox.stub(options.geolocation);
     this.sandbox.stub(options.viewfinder);
@@ -101,6 +107,7 @@ suite('app', function() {
       assert.ok(app.geolocation === options.geolocation);
       assert.ok(app.activity === options.activity);
       assert.ok(app.camera === options.camera);
+      assert.ok(app.storage === options.storage);
       assert.ok(app.sounds === options.sounds);
       assert.ok(app.views === options.views);
       assert.ok(app.controllers === options.controllers);
@@ -112,7 +119,7 @@ suite('app', function() {
 
       // need to `new App()` again here (and disregard `this.app`)
       // because we have changed the option mock.
-      var App = this.modules.app;
+      var App = modules.app;
       var app = new App(options);
 
       assert.ok(app.inSecureMode === true);
@@ -161,15 +168,12 @@ suite('app', function() {
     });
 
     suite('app.geolocation', function() {
-      test('Should watch location if not in ' +
-           'activity and app is visible', function() {
-        var geolocation = this.app.geolocation;
-
-        this.app.doc.hidden = false;
-        this.app.activity.active = false;
+      test('Should watch location only once storage confirmed healthy',
+      function() {
+        var geolocationWatch = this.app.geolocationWatch;
+        var storage = this.app.storage;
         this.app.boot();
-
-        assert.ok(geolocation.watch.called);
+        assert.ok(storage.once.calledWith('checked:healthy', geolocationWatch));
       });
 
       test('Should *not* watch location if not in activity', function() {
@@ -177,7 +181,7 @@ suite('app', function() {
 
         this.app.doc.hidden = false;
         this.app.activity.active = true;
-        this.app.boot();
+        this.app.geolocationWatch();
 
         assert.ok(geolocation.watch.notCalled);
       });
@@ -187,7 +191,7 @@ suite('app', function() {
 
         this.app.doc.hidden = true;
         this.app.activity.active = false;
-        this.app.boot();
+        this.app.geolocationWatch();
 
         assert.ok(geolocation.watch.notCalled);
       });

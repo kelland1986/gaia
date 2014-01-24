@@ -11,6 +11,12 @@
 var ThreadListUI = {
   draftLinks: null,
   draftRegistry: null,
+  DRAFT_SAVED_DURATION: 5000,
+
+  // Used to track timeouts
+  timeouts: {
+    onDraftSaved: null
+  },
 
   // Used to track the current number of rendered
   // threads. Updated in ThreadListUI.renderThreads
@@ -29,7 +35,7 @@ var ThreadListUI = {
       'container', 'no-messages',
       'check-all-button', 'uncheck-all-button',
       'delete-button', 'cancel-button',
-      'edit-icon', 'edit-mode', 'edit-form'
+      'edit-icon', 'edit-mode', 'edit-form', 'draft-saved-banner'
     ].forEach(function(id) {
       this[Utils.camelCase(id)] = document.getElementById('threads-' + id);
     }, this);
@@ -347,22 +353,28 @@ var ThreadListUI = {
   },
 
   renderDrafts: function thlui_renderDrafts() {
-    // Request and render all thread-less drafts.
+    // Request and render all threads with drafts
+    // or thread-less drafts.
     Drafts.request(function() {
-      var threadless = Drafts.byThreadId(null);
+      Drafts.forEach(function(draft, threadId) {
+        if (threadId) {
+          // Find draft-containing threads that have already been rendered
+          // and update them so they mark themselves appropriately
+          var el = document.getElementById('thread-' + threadId);
+          if (el) {
+            this.updateThread(Threads.get(threadId));
+          }
+        } else {
+          // Safely assume there is a threadless draft
+          this.setEmpty(false);
 
-      if (threadless.length) {
-        this.setEmpty(false);
-      }
-      // `threadless` is an instance of Drafts.List
-      // and only exposes a length property and a forEach method.
-      threadless.forEach(function(draft) {
-        // If there is currently no list item rendered for this
-        // draft, then proceed.
-        if (!this.draftRegistry[draft.id]) {
-          this.appendThread(
-            Thread.create(draft)
-          );
+          // If there is currently no list item rendered for this
+          // draft, then proceed.
+          if (!this.draftRegistry[draft.id]) {
+            this.appendThread(
+              Thread.create(draft)
+            );
+          }
         }
       }, this);
 
@@ -446,7 +458,7 @@ var ThreadListUI = {
     // Create DOM element
     var li = document.createElement('li');
     var timestamp = +record.timestamp;
-    var lastMessageType = record.lastMessageType;
+    var type = record.lastMessageType;
     var participants = record.participants;
     var number = participants[0];
     var id = record.id;
@@ -473,6 +485,7 @@ var ThreadListUI = {
             return true;
           }
         });
+        type = draft.type;
       }
     }
 
@@ -481,7 +494,7 @@ var ThreadListUI = {
     li.id = 'thread-' + id;
     li.dataset.threadId = id;
     li.dataset.time = timestamp;
-    li.dataset.lastMessageType = lastMessageType;
+    li.dataset.lastMessageType = type;
 
     if (record.unreadCount > 0) {
       li.classList.add('unread');
@@ -681,6 +694,17 @@ var ThreadListUI = {
       li.classList.remove(remove);
       li.classList.add(current);
     }
+  },
+
+  onDraftSaved: function thlui_onDraftSaved() {
+    this.draftSavedBanner.classList.remove('hide');
+
+    clearTimeout(this.timeouts.onDraftSaved);
+    this.timeouts.onDraftSaved = null;
+
+    this.timeouts.onDraftSaved = setTimeout(function hideDraftSavedBanner() {
+      this.draftSavedBanner.classList.add('hide');
+    }.bind(this), this.DRAFT_SAVED_DURATION);
   }
 };
 

@@ -2,14 +2,8 @@
 /*global req*/
 'use strict';
 
-suite.skip('controllers/overlay', function() {
+suite('controllers/overlay', function() {
   var Controller;
-
-  // Sometimes setup via the
-  // test agent can take a while,
-  // so we need to bump timeout
-  // to prevent test failure.
-  this.timeout(3000);
 
   suiteSetup(function(done) {
     var self = this;
@@ -18,12 +12,10 @@ suite.skip('controllers/overlay', function() {
 
     req([
       'controllers/overlay',
-      'camera',
       'activity',
       'views/overlay'
-    ], function(controller, camera, activity, Overlay) {
+    ], function(controller, activity, Overlay) {
       Controller = self.modules.controller = controller;
-      self.modules.camera = camera;
       self.modules.activity = activity;
       self.modules.Overlay = Overlay;
       done();
@@ -31,15 +23,20 @@ suite.skip('controllers/overlay', function() {
   });
 
   setup(function() {
-    var Camera = this.modules.camera;
     var Activity = this.modules.activity;
 
     this.app = {
-      camera: new Camera(),
+      camera: {
+        state: {
+          on: sinon.spy()
+        },
+        get: sinon.spy()
+      },
+      storage: {
+        on: sinon.spy()
+      },
       activity: new Activity()
     };
-
-    sinon.stub(this.app.camera.state, 'on');
 
     navigator.mozL10n = { get: sinon.stub() };
     navigator.mozL10n.get.withArgs('nocard2-title').returns('nocard title');
@@ -58,11 +55,11 @@ suite.skip('controllers/overlay', function() {
   suite('OverlayController()', function() {
     test('Should bind to the storage state change event', function() {
       this.controller = new Controller(this.app);
-      assert.ok(this.app.camera.state.on.calledWith('change:storage'));
+      assert.ok(this.app.storage.on.calledWith('statechange'));
     });
   });
 
-  suite('OverlayController#onStorageChange()', function() {
+  suite('OverlayController#onStorageStateChange()', function() {
     setup(function() {
       this.controller = new Controller(this.app);
       sinon.stub(this.controller, 'destroyOverlays');
@@ -71,14 +68,14 @@ suite.skip('controllers/overlay', function() {
 
     test('Should destroy any old storage overlays if storage' +
          'becomes available, and not insert a new overlay', function() {
-      this.controller.onStorageChange('available');
+      this.controller.onStorageStateChange('available');
       assert.isTrue(this.controller.destroyOverlays.calledOnce);
       assert.isFalse(this.controller.insertOverlay.called);
     });
 
     test('Should call insertOverlay whenever' +
          'the value is not \'available\'', function() {
-      this.controller.onStorageChange('foo');
+      this.controller.onStorageStateChange('foo');
       assert.isFalse(this.controller.destroyOverlays.called);
       assert.isTrue(this.controller.insertOverlay.calledWith('foo'));
     });

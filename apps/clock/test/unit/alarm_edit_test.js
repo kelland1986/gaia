@@ -1,8 +1,11 @@
+mocha.setup({ globals: ['GestureDetector'] });
+
 suite('AlarmEditView', function() {
   var nativeMozAlarms = navigator.mozAlarms;
   var Alarm, AlarmEdit, ActiveAlarm, AlarmsDB, AlarmList, AlarmManager;
 
   suiteSetup(function(done) {
+    this.slow(25000);
     testRequire([
         'alarm',
         'active_alarm',
@@ -34,7 +37,7 @@ suite('AlarmEditView', function() {
   });
 
   setup(function() {
-    this.sinon.stub(ActiveAlarm, 'handler');
+    this.sinon.stub(ActiveAlarm.singleton(), 'handler');
   });
 
   suiteTeardown(function() {

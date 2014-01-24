@@ -331,6 +331,12 @@ function handleScreenLayoutChange() {
   // text to have correct ellipsis position. Otherwise, we update them when
   // leaving fullscreen mode.
   if (currentLayoutMode !== LAYOUT_MODE.fullscreenPlayer) {
+    // XXX: to workaround bug 961636 which fires two resize event at the app
+    // start-up,we need to check the existence of thumbnailList before using
+    // it.
+    if (!thumbnailList) {
+      return;
+    }
     thumbnailList.upateAllThumbnailTitle();
   } else {
     pendingUpdateTitleText = true;
@@ -1011,10 +1017,7 @@ function hidePlayer(updateVideoMetadata, callback) {
 
   function updateMetadata() {
     // Update the thumbnail image for this video
-    var imageblob = video.metadata.bookmark || video.metadata.poster;
-    if (imageblob) {
-      thumbnail.updatePoster(imageblob);
-    }
+    thumbnail.updatePoster(video.metadata.bookmark || video.metadata.poster);
 
     // If this is the first time the video was watched, record that it has
     // been watched now and update the corresponding document element.

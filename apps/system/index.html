@@ -51,9 +51,9 @@
     <link rel="stylesheet" type="text/css" href="shared/style/input_areas.css">
     <link rel="stylesheet" type="text/css" href="shared/style/headers.css"/>
     <link rel="stylesheet" type="text/css" href="shared/style/switches.css"/>
-    <link rel="stylesheet" type="text/css" href="shared/style_unstable/value_selector.css">
-    <link rel="stylesheet" type="text/css" href="shared/style_unstable/date_selector.css">
-    <link rel="stylesheet" type="text/css" href="shared/style_unstable/time_selector.css">
+    <link rel="stylesheet" type="text/css" href="shared/style/value_selector.css">
+    <link rel="stylesheet" type="text/css" href="shared/style/date_selector.css">
+    <link rel="stylesheet" type="text/css" href="shared/style/time_selector.css">
 
     <link rel="stylesheet" type="text/css" href="style/fake-notification.css"/>
 
@@ -120,9 +120,6 @@
     <link rel="stylesheet" type="text/css" href="shared/style/action_menu.css">
     <link rel="stylesheet" type="text/css" href="style/action_menu/action_menu_extended.css">
     <script defer src="js/action_menu.js"></script>
-
-    <!-- Context Menu -->
-    <script defer src="js/context_menu.js"></script>
 
     <!-- Statusbar -->
     <link rel="stylesheet" type="text/css" href="style/statusbar/statusbar.css">
@@ -292,6 +289,7 @@
     <!-- homescreen from being displayed must come before this script. -->
     <link rel="stylesheet" type="text/css" href="style/window.css">
     <script defer src="js/base_ui.js"></script>
+    <script defer src="js/browser_context_menu.js"></script>
     <script defer src="js/app_modal_dialog.js"></script>
     <script defer src="js/app_chrome.js"></script>
     <script defer src="js/app_transition_controller.js"></script>
@@ -346,7 +344,7 @@
     <script defer src="js/rocketbar.js"></script>
     <script defer src="js/title.js"></script>
     <script defer src="shared/js/url_helper.js"></script>
-    <link rel="stylesheet" type="text/css" href="style/rocketbar.css">
+    <link rel="stylesheet" type="text/css" href="style/rocketbar/rocketbar.css">
 
     <!-- Firefox Accounts-->
     <script defer src="js/fxa_manager.js"></script>
@@ -421,50 +419,53 @@
       <div id="statusbar" data-z-index-level="statusbar">
         <!-- Browser chrome title-->
         <div id="statusbar-title"></div>
-        <!-- Carrier & date label -->
-        <div id="statusbar-label" class="sb-start-upper"></div>
-        <!-- CDMA emergency callback Notification -->
-        <div id="statusbar-emergency-cb-notification" class="sb-start sb-icon sb-emergency-cb-icon-notification" hidden></div>
-        <!-- Notification -->
-        <div id="statusbar-notification" class="sb-start sb-icon sb-icon-notification"
-          data-num="" hidden></div>
 
-        <!-- Time -->
-        <div id="statusbar-time"></div>
+        <div id="statusbar-icons">
+          <!-- Time -->
+          <div id="statusbar-time"></div>
 
-        <!-- Status -->
-        <div id="statusbar-battery" class="sb-icon sb-icon-battery"
-          data-level="100" charging hidden></div>
-        <div id="statusbar-wifi" class="sb-icon sb-icon-wifi"
-          data-level="4" hidden></div>
-        <div id="statusbar-flight-mode" class="sb-icon sb-icon-flight-mode" hidden></div>
-        <div id="statusbar-connections"></div>
-        <div id="statusbar-headphones" class="sb-icon sb-icon-headphones" hidden></div>
-        <div id="statusbar-bluetooth-headphones" class="sb-icon sb-icon-bluetooth-headphones" hidden></div>
-        <div id="statusbar-bluetooth-transferring" class="sb-icon sb-icon-bluetooth-transferring" hidden></div>
+          <!-- Status -->
+          <div id="statusbar-battery" class="sb-icon sb-icon-battery"
+            data-level="100" hidden></div>
+          <div id="statusbar-wifi" class="sb-icon sb-icon-wifi"
+            data-level="4" hidden></div>
+          <div id="statusbar-flight-mode" class="sb-icon sb-icon-flight-mode" hidden></div>
+          <div id="statusbar-connections"></div>
+          <div id="statusbar-headphones" class="sb-icon sb-icon-headphones" hidden></div>
+          <div id="statusbar-bluetooth-headphones" class="sb-icon sb-icon-bluetooth-headphones" hidden></div>
+          <div id="statusbar-bluetooth-transferring" class="sb-icon sb-icon-bluetooth-transferring" hidden></div>
 
-        <!-- Permissions -->
-        <div id="statusbar-tethering" class="sb-icon sb-icon-tethering" hidden></div>
-        <div id="statusbar-alarm" class="sb-icon sb-icon-alarm" hidden></div>
-        <div id="statusbar-bluetooth" class="sb-icon sb-icon-bluetooth" hidden></div>
-        <div id="statusbar-mute" class="sb-icon sb-icon-mute" hidden></div>
-        <div id="statusbar-recording" class="sb-icon sb-icon-recording" hidden></div>
-        <div id="statusbar-sms" class="sb-icon sb-icon-sms" hidden></div>
-        <div id="statusbar-geolocation" class="sb-icon sb-icon-geolocation" hidden></div>
-        <div id="statusbar-usb" class="sb-icon sb-icon-usb" hidden></div>
-        <div id="statusbar-call-forwarding" class="sb-icon sb-icon-call-forwarding" hidden></div>
-        <div id="statusbar-playing" class="sb-icon sb-icon-playing" hidden></div>
+          <!-- Permissions -->
+          <div id="statusbar-tethering" class="sb-icon sb-icon-tethering" hidden></div>
+          <div id="statusbar-alarm" class="sb-icon sb-icon-alarm" hidden></div>
+          <div id="statusbar-bluetooth" class="sb-icon sb-icon-bluetooth" hidden></div>
+          <div id="statusbar-mute" class="sb-icon sb-icon-mute" hidden></div>
+          <div id="statusbar-recording" class="sb-icon sb-icon-recording" hidden></div>
+          <div id="statusbar-sms" class="sb-icon sb-icon-sms" hidden></div>
+          <div id="statusbar-geolocation" class="sb-icon sb-icon-geolocation" hidden></div>
+          <div id="statusbar-usb" class="sb-icon sb-icon-usb" hidden></div>
+          <div id="statusbar-call-forwarding" class="sb-icon sb-icon-call-forwarding" hidden></div>
+          <div id="statusbar-playing" class="sb-icon sb-icon-playing" hidden></div>
 
-        <!-- Activity -->
-        <!-- HACK: We use images instead of divs to enforce allocation of a
-             dedicated layer just for this animated icons, remove after bug
-             717872 gets fixed -->
-        <img id="statusbar-system-downloads"
-             src="style/statusbar/images/system-downloads.png"
-             class="sb-icon-system-downloads" hidden>
-        <img id="statusbar-network-activity"
-             src="style/statusbar/images/network-activity.png"
-             class="sb-icon-network-activity" hidden>
+          <!-- Activity -->
+          <!-- HACK: We use images instead of divs to enforce allocation of a
+               dedicated layer just for this animated icons, remove after bug
+               717872 gets fixed -->
+          <img id="statusbar-system-downloads"
+               src="style/statusbar/images/system-downloads.png"
+               class="sb-icon-system-downloads" hidden>
+          <img id="statusbar-network-activity"
+               src="style/statusbar/images/network-activity.png"
+               class="sb-icon-network-activity" hidden>
+
+          <!-- Carrier & date label -->
+          <div id="statusbar-label" class="sb-start-upper"></div>
+          <!-- CDMA emergency callback Notification -->
+          <div id="statusbar-emergency-cb-notification" class="sb-start sb-icon sb-emergency-cb-icon-notification" hidden></div>
+          <!-- Notification -->
+          <div id="statusbar-notification" class="sb-start sb-icon sb-icon-notification"
+            data-num="" hidden></div>
+        </div>
       </div>
       <div id="search-bar" data-z-index-level="search-bar">
         <form id="search-form" class="skin-dark">
@@ -1044,7 +1045,7 @@
               <div id="lockscreen-conn-states" hidden></div>
               <div id="lockscreen-mute" hidden></div>
               <div id="lockscreen-alt-camera" class="lockscreen-icon">
-                <div role="button" data-l10n-id="camera-a11y-button" aria-label="Camera"></div>
+                <div id="lockscreen-alt-camera-button" role="button" data-l10n-id="camera-a11y-button" aria-label="Camera"></div>
               </div>
               <div class="lockscreen-clock">
                 <span id="lockscreen-clock-numbers"></span>

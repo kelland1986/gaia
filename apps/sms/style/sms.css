@@ -47,6 +47,17 @@ section[role="region"] > header:first-child .icon.icon-attachment {
   background-image: url(images/icons/attachments.png);
 }
 
+/* Override Building Block [Header] first-child hover styles(for v1.3 fixing)
+ * TODO: We will remove this part once Bug 961572 fixing landed in master
+ */
+section[role="region"] > header:first-child > a:not([aria-disabled="true"]):hover:after {
+  background-color: #F97C17 !important;
+}
+
+section[role="region"] > header:first-child > a:not([aria-disabled="true"]):hover:active:after {
+  background-color: #dc6a0e !important;
+}
+
 /* Override Building Block [Imput areas] styles */
 form.bottom[role="search"] {
   z-index: 3;
@@ -256,12 +267,11 @@ form[data-type="action"] img[src=""] {
   display: none;
 }
 
-#new-message-notice-content {
+#messages-new-message-notice {
   display: flex;  
   flex-direction: row;
 
-  margin: 1rem 2rem;
-  padding: 0;
+  padding: 1rem 1.5rem 1rem 2rem;
   overflow: hidden;
 
   white-space: nowrap;
@@ -270,26 +280,29 @@ form[data-type="action"] img[src=""] {
   text-align: left;
 }
 
-#new-message-notice-content a {
+#messages-new-message-notice a {
   margin: 0;
 }
 
-#new-message-notice-contact {
+#messages-new-message-notice .contact {
   overflow: hidden;
 
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-#new-message-notice-container-1 {
+#messages-new-message-notice > div:first-child {
   flex: auto;
+
+  overflow: hidden;
 }
 
-#new-message-notice-container-2 {
+#messages-new-message-notice > div:nth-child(2) {
   flex: none;
 
-  padding: 0.2rem 0;
+  padding: 0.2rem 0 0.2rem 1.5rem;
 }
+
 /*
   Styles for Edit mode in Thread List
 */
@@ -881,7 +894,7 @@ generateHeightRule() (in ThreadUI/thread_ui.js) will create:
   -moz-box-sizing: border-box;
        box-sizing: border-box;
   max-width: calc(100% - .5rem);
-  height: 2.2rem;
+  height: 2.4rem;
   border: .1rem solid #4d4d4d;
   padding: 0 0.8rem;
 

@@ -40,12 +40,12 @@ body {
   -moz-transition-property: transform;
   -moz-transition-duration: 0.3s;
   -moz-transition-timing-function: ease;
-  -moz-transition-delay: 0;
+  transition-delay: 0s;
 
 }
 
 .card.anim-up center {
-  transition: translateX(0);
+  transform: translateX(0);
 }
 
 .card.no-anim {
@@ -61,10 +61,7 @@ body {
 }
 
 .card.before {
-  /* Show a sliver of the before card, to kickstart
-  platform for a smooth, non-black transition: 828266.
-  Otherwise, this would just be -100% */
-  transform: translateX(calc(-100% + 0.5px));
+  transform: translateX(-100%);
 }
 
 .card.before.anim-vertical {
@@ -72,10 +69,7 @@ body {
 }
 
 .card.after {
-  /* Show a sliver of the after card, to kickstart
-  platform for a smooth, non-black transition: 828266.
-  Otherwise, this would just be 100% */
-  transform: translateX(calc(100% - 0.5px));
+  transform: translateX(100%);
 }
 
 .card.after.anim-vertical {
@@ -99,7 +93,6 @@ body {
 
 .top-header {
   background: -moz-linear-gradient(to top, #ffffff 0, #a3a3a3 0.5rem, #992f21 0.5rem, #992f21 0.6rem, #bb492d 0.6rem, #cc6523 100%);
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%,  #cc6523), color-stop(100%, #bb492d));
   height: 5.2rem;
   width: 100%;
   padding: 0;
@@ -123,7 +116,7 @@ body {
 
 .header-btn, .header-left-btn, .header-right-btn {
   position: absolute;
-  top: 0
+  top: 0;
   height: 5.2rem;
   width: 3.2rem;
   border: none;

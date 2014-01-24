@@ -6,16 +6,8 @@ define(function(require, exports, module) {
  */
 
 var debug = require('debug')('controller:camera');
-var performance = require('performanceTesting');
 var constants = require('config/camera');
 var bindAll = require('utils/bindAll');
-
-/**
- * Locals
- */
-
-var CAMERA = constants.CAMERA_MODE_TYPE.CAMERA;
-var proto = CameraController.prototype;
 
 /**
  * Exports
@@ -23,6 +15,11 @@ var proto = CameraController.prototype;
 
 module.exports = CameraController;
 
+/**
+ * Initialize a new `CameraController`
+ *
+ * @param {App} app
+ */
 function CameraController(app) {
   if (!(this instanceof CameraController)) {
     return new CameraController(app);
@@ -32,32 +29,20 @@ function CameraController(app) {
   this.viewfinder = app.views.viewfinder;
   this.filmstrip = app.filmstrip;
   this.activity = app.activity;
+  this.storage = app.storage;
   this.camera = app.camera;
   this.app = app;
-
   bindAll(this);
   this.setCaptureMode();
   this.bindEvents();
-
-  // This is old code and should
-  // eventually be removed. The
-  // activity.js module should be the
-  // only place we query about activity.
-  if (this.activity.raw) {
-    this.camera._pendingPick = this.activity.raw;
-  }
-
-  // Not sure what this is for...?
-  if ('mozSettings' in navigator) {
-    this.camera.getPreferredSizes();
-  }
-
   debug('initialized');
 }
 
-proto.bindEvents = function() {
+CameraController.prototype.bindEvents = function() {
+  this.camera.on('filesizelimitreached', this.onFileSizeLimitReached);
   this.camera.on('recordingstart', this.onRecordingStart);
   this.camera.on('recordingend', this.onRecordingEnd);
+  this.camera.on('configured', this.onConfigured);
   this.camera.on('newimage', this.onNewImage);
   this.camera.on('newvideo', this.onNewVideo);
   this.camera.on('shutter', this.onShutter);
@@ -73,28 +58,27 @@ proto.bindEvents = function() {
  *
  * The mode chosen by an
  * activity is chosen, else
- * we just default to 'camera'
+ * we just default to 'photo'
  *
  */
-proto.setCaptureMode = function() {
-  var initialMode = this.activity.mode || CAMERA;
-  this.camera.setCaptureMode(initialMode);
+CameraController.prototype.setCaptureMode = function() {
+  var initialMode = this.activity.mode ||
+                    constants.CAMERA_MODE_TYPE.PHOTO;
+  this.camera.set('mode', initialMode);
   debug('capture mode set: %s', initialMode);
 };
 
-proto.setupCamera = function() {
-  this.camera.loadStreamInto(this.viewfinder.el, onStreamLoaded);
-  debug('setting up');
-
-  function onStreamLoaded(stream) {
-    performance.dispatch('camera-preview-loaded');
-    debug('stream loaded %d ms after dom began loading',
-          Date.now() - window.performance.timing.domLoading);
-  }
+CameraController.prototype.setupCamera = function() {
+  this.camera.load();
 };
 
-proto.teardownCamera = function() {
-  var recording = this.camera.state.get('recording');
+CameraController.prototype.onConfigured = function() {
+  var maxFileSize = this.camera.maxPictureSize;
+  this.storage.setMaxFileSize(maxFileSize);
+};
+
+CameraController.prototype.teardownCamera = function() {
+  var recording = this.camera.get('recording');
   var camera = this.camera;
 
   try {
@@ -103,10 +87,8 @@ proto.teardownCamera = function() {
     }
 
     this.viewfinder.stopPreview();
-    camera.state.set({
-      previewActive: false,
-      focusState: 'none'
-    });
+    camera.set('previewActive', false);
+    camera.set('focus', 'none');
     this.viewfinder.setPreviewStream(null);
   } catch (e) {
     console.error('error while stopping preview', e.message);
@@ -119,33 +101,69 @@ proto.teardownCamera = function() {
   if (this.app.inSecureMode) {
     this.filmstrip.clear();
   }
+
   debug('torn down');
 };
 
-proto.onNewImage = function(data) {
+CameraController.prototype.onNewImage = function(image) {
   var filmstrip = this.filmstrip;
-  var camera = this.camera;
-  var blob = data.blob;
+  var storage = this.storage;
+  var blob = image.blob;
 
   // In either case, save
   // the photo to device storage
-  camera._addPictureToStorage(blob, function(name, path) {
-    filmstrip.addImageAndShow(path, blob);
-    camera.storageCheck();
+  storage.addImage(blob, function(filepath) {
+    debug('stored image', filepath);
+    filmstrip.addImageAndShow(filepath, blob);
   });
 
-  if (!this.activity.active) {
-    camera.resumePreview();
-  }
-  debug('new image', data);
+  debug('new image', image);
+  this.app.emit('newimage', image);
 };
 
-proto.onNewVideo = function(data) {
+CameraController.prototype.onNewVideo = function(video) {
+  debug('new video', video);
+
+  var storage = this.storage;
+  var poster = video.poster;
   var camera = this.camera;
-  var poster = data.poster;
-  camera._pictureStorage.addNamed(poster.blob, poster.filename);
-  this.filmstrip.addVideoAndShow(data);
-  debug('new video', data);
+  var tmpBlob = video.blob;
+  var app = this.app;
+
+  // Add the video to the filmstrip,
+  // then save lazily so as not to block UI
+  this.filmstrip.addVideoAndShow(video);
+  storage.addVideo(tmpBlob, function(blob, filepath) {
+    debug('stored video', filepath);
+    video.filepath = filepath;
+    video.blob = blob;
+
+    // Add the poster image to the image storage
+    poster.filepath = video.filepath.replace('.3gp', '.jpg');
+    storage.addImage(poster.blob, { filepath: poster.filepath });
+
+    // Now we have stored the blob
+    // we can delete the temporary one.
+    // NOTE: If we could 'move' the temp
+    // file it would be a lot better.
+    camera.deleteTmpVideoFile();
+    app.emit('newvideo', video);
+  });
+};
+
+CameraController.prototype.onFileSizeLimitReached = function() {
+  this.camera.stopRecording();
+  this.showSizeLimitAlert();
+};
+
+CameraController.prototype.showSizeLimitAlert = function() {
+  if (this.sizeLimitAlertActive) { return; }
+  this.sizeLimitAlertActive = true;
+  var alertText = this.activity.active ?
+    'activity-size-limit-reached' :
+    'storage-size-limit-reached';
+  alert(navigator.mozL10n.get(alertText));
+  this.sizeLimitAlertActive = false;
 };
 
 /**
@@ -153,7 +171,7 @@ proto.onNewVideo = function(data) {
  * sound effect.
  *
  */
-proto.onRecordingStart = function() {
+CameraController.prototype.onRecordingStart = function() {
   this.app.sounds.play('recordingStart');
 };
 
@@ -162,7 +180,7 @@ proto.onRecordingStart = function() {
  * sound effect.
  *
  */
-proto.onRecordingEnd = function() {
+CameraController.prototype.onRecordingEnd = function() {
   this.app.sounds.play('recordingEnd');
 };
 
@@ -171,7 +189,7 @@ proto.onRecordingEnd = function() {
  * sound effect.
  *
  */
-proto.onShutter = function() {
+CameraController.prototype.onShutter = function() {
   this.app.sounds.play('shutter');
 };
 

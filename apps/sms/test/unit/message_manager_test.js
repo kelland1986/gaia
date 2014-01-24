@@ -2,13 +2,14 @@
          MockL10n, MockContact, loadBodyHTML, MozSmsFilter,
          ThreadListUI, MockThreads, MockMessages, Threads, Compose,
          GroupView, ReportView, ThreadListUI, MockThreads, MockMessages,
-         Threads, Compose, Drafts, Draft */
+         Threads, Compose, Drafts, Draft, MockNotification, Notification */
 
 'use strict';
 
 requireApp('sms/js/utils.js');
 requireApp('sms/js/time_headers.js');
 
+requireApp('sms/shared/test/unit/mocks/mock_notification.js');
 
 requireApp('sms/test/unit/mock_attachment.js');
 requireApp('sms/test/unit/mock_async_storage.js');
@@ -41,6 +42,7 @@ var mocksHelperForMessageManager = new MocksHelper([
   'Drafts',
   'LinkActionHandler',
   'MozSmsFilter',
+  'Notification',
   'LinkActionHandler',
   'GroupView',
   'ReportView',
@@ -334,7 +336,8 @@ suite('message_manager.js >', function() {
 
     setup(function() {
       ThreadUI.initRecipients();
-      this.sinon.stub(ThreadUI, 'setMessageBody');
+      this.sinon.spy(Compose, 'fromDraft');
+      this.sinon.spy(Compose, 'fromMessage');
       MessageManager.threadMessages = document.createElement('div');
     });
 
@@ -351,7 +354,7 @@ suite('message_manager.js >', function() {
 
       assert.equal(ThreadUI.recipients.numbers.length, 1);
       assert.equal(ThreadUI.recipients.numbers[0], '998');
-      assert.ok(ThreadUI.setMessageBody.calledWith());
+      assert.ok(Compose.fromMessage.calledWith(activity));
     });
 
     test('from activity with known contact', function() {
@@ -362,7 +365,7 @@ suite('message_manager.js >', function() {
 
       assert.equal(ThreadUI.recipients.numbers.length, 1);
       assert.equal(ThreadUI.recipients.numbers[0], '+346578888888');
-      assert.ok(ThreadUI.setMessageBody.calledWith());
+      assert.ok(Compose.fromMessage.calledWith(activity));
     });
 
     test('with message body', function() {
@@ -372,7 +375,7 @@ suite('message_manager.js >', function() {
         body: 'test'
       };
       MessageManager.handleActivity(activity);
-      assert.ok(ThreadUI.setMessageBody.calledWith('test'));
+      assert.ok(Compose.fromMessage.calledWith(activity));
     });
 
     test('No contact and no number', function() {
@@ -383,27 +386,27 @@ suite('message_manager.js >', function() {
       };
       MessageManager.handleActivity(activity);
       assert.equal(ThreadUI.recipients.numbers.length, 0);
-      assert.ok(ThreadUI.setMessageBody.calledWith('Youtube url'));
+      assert.ok(Compose.fromMessage.calledWith(activity));
     });
   });
 
   suite('handleForward() >', function() {
-
+    var message;
     setup(function() {
-      this.sinon.spy(ThreadUI, 'setMessageBody');
-      this.sinon.spy(Compose, 'append');
+      this.sinon.spy(Compose, 'fromMessage');
       this.sinon.stub(MessageManager, 'getMessage', function(id) {
-        var result;
         switch (id) {
           case 1:
-            result = MockMessages.sms();
+            message = MockMessages.sms();
             break;
           case 2:
-            result = MockMessages.mms();
+            message = MockMessages.mms();
             break;
+          case 3:
+            message = MockMessages.mms({subject: 'Title'});
         }
         var request = {
-          result: result,
+          result: message,
           set onsuccess(cb) {
             cb();
           },
@@ -426,7 +429,7 @@ suite('message_manager.js >', function() {
       MessageManager.handleForward(forward);
       assert.ok(MessageManager.getMessage.calledOnce);
       assert.ok(MessageManager.getMessage.calledWith(1));
-      assert.ok(ThreadUI.setMessageBody.called);
+      assert.ok(Compose.fromMessage.called);
     });
 
     test(' forward MMS with attachment', function() {
@@ -436,8 +439,17 @@ suite('message_manager.js >', function() {
       MessageManager.handleForward(forward);
       assert.ok(MessageManager.getMessage.calledOnce);
       assert.ok(MessageManager.getMessage.calledWith(2));
-      assert.isFalse(ThreadUI.setMessageBody.called);
-      assert.ok(Compose.append.called);
+      assert.isTrue(Compose.fromMessage.calledWith(message));
+    });
+
+    test(' forward MMS with subject', function() {
+      var forward = {
+        messageId: 3
+      };
+      MessageManager.handleForward(forward);
+      assert.ok(MessageManager.getMessage.calledOnce);
+      assert.ok(MessageManager.getMessage.calledWith(3));
+      assert.isTrue(Compose.fromMessage.calledWith(message));
     });
   });
 
@@ -541,6 +553,7 @@ suite('message_manager.js >', function() {
   });
 
   suite('onHashChange', function() {
+    var notificationGetStub;
     setup(function() {
       this.sinon.spy(document.activeElement, 'blur');
       MessageManager.threadMessages = document.createElement('div');
@@ -554,6 +567,16 @@ suite('message_manager.js >', function() {
       this.sinon.spy(ReportView, 'reset');
       this.sinon.spy(MessageManager, 'handleActivity');
       this.sinon.stub(MessageManager, 'slide');
+      notificationGetStub = function notificationGet(options) {
+        return {
+          then: function(onSuccess, onError, onProgress) {
+            onSuccess([
+              new Notification('123456789', options)
+            ]);
+          }
+        };
+      };
+      this.sinon.stub(Notification, 'get', notificationGetStub);
       MessageManager.onHashChange();
     });
 
@@ -584,17 +607,8 @@ suite('message_manager.js >', function() {
         Threads.currentId = null;
       });
 
-      test('MessageManager.draft rendered after clearing composer', function() {
-        // renderMessages is passed as a callback to slide left
-        ThreadUI.updateHeaderData.yield();
-        MessageManager.slide.yield();
-        assert.ok(Compose.fromDraft.calledAfter(ThreadUI.renderMessages));
-        assert.ok(Compose.fromDraft.calledWith(MessageManager.draft));
-      });
-
       test('Thread latest draft rendered after clearing composer', function() {
         var draft = {};
-
         this.sinon.stub(Threads, 'get').returns({
           hasDrafts: true,
           drafts: {
@@ -605,9 +619,50 @@ suite('message_manager.js >', function() {
 
         ThreadUI.updateHeaderData.yield();
         MessageManager.slide.yield();
-        assert.ok(Compose.fromDraft.calledAfter(ThreadUI.renderMessages));
-        assert.ok(Compose.fromDraft.calledWith(draft));
+
+        sinon.assert.callOrder(ThreadUI.renderMessages, Compose.fromDraft);
+        sinon.assert.calledWith(Compose.fromDraft, draft);
         assert.equal(draft, MessageManager.draft);
+        assert.isFalse(MessageManager.draft.isEdited);
+      });
+
+      test('Thread latest draft rendered if not in thread', function() {
+        var draft = {
+          content: 'AAA'
+        };
+        this.sinon.stub(Threads, 'get').returns({
+          hasDrafts: true,
+          drafts: {
+            latest: draft
+          }
+        });
+
+        ThreadUI.updateHeaderData.yield();
+        MessageManager.slide.yield();
+
+        sinon.assert.callOrder(ThreadUI.renderMessages, Compose.fromDraft);
+        sinon.assert.calledWith(Compose.fromDraft, draft);
+        assert.equal(draft, MessageManager.draft);
+        assert.isFalse(MessageManager.draft.isEdited);
+      });
+
+      test('Thread latest draft not rendered if in thread', function() {
+        ThreadUI.inThread = true;
+        var draft = {
+          content: 'AAA'
+        };
+        this.sinon.stub(Threads, 'get').returns({
+          hasDrafts: true,
+          drafts: {
+            latest: draft
+          }
+        });
+
+        ThreadUI.updateHeaderData.yield();
+        MessageManager.slide.yield();
+
+        sinon.assert.notCalled(Compose.fromDraft);
+        sinon.assert.neverCalledWith(Compose.fromDraft, draft);
       });
     });
 
@@ -641,12 +696,14 @@ suite('message_manager.js >', function() {
       });
 
       suite('> Switch to #thread=100', function() {
+        var closeSpy;
         setup(function() {
           // reset states
           MessageManager.threadMessages.classList.add('new');
           MessageManager.slide.reset();
           ThreadUI.updateHeaderData.reset();
 
+          closeSpy = this.sinon.spy(MockNotification.prototype, 'close');
           this.threadId = MockThreads.currentId = 100;
           window.location.hash = '#thread=' + this.threadId;
           MessageManager.onHashChange();
@@ -663,6 +720,15 @@ suite('message_manager.js >', function() {
           assert.ok(
             ThreadListUI.mark.calledWith(this.threadId, 'read')
           );
+        });
+        test('calls Notification.get() on correct tag', function() {
+          assert.ok(
+            Notification.get.calledWith(
+              {tag: 'threadId:' + this.threadId})
+          );
+        });
+        test('calls Notification.close()', function() {
+          sinon.assert.calledOnce(closeSpy);
         });
         test('calls updateHeaderData', function() {
           assert.ok(
@@ -810,7 +876,10 @@ suite('message_manager.js >', function() {
         MessageManager.onVisibilityChange();
 
         sinon.assert.calledOnce(ThreadUI.saveDraft);
-        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+        sinon.assert.calledWithMatch(
+          ThreadUI.saveDraft,
+          {preserve: true, autoSave: true}
+        );
       });
 
       test('new: has message, has recipients', function() {
@@ -822,7 +891,10 @@ suite('message_manager.js >', function() {
         MessageManager.onVisibilityChange();
 
         sinon.assert.calledOnce(ThreadUI.saveDraft);
-        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+        sinon.assert.calledWithMatch(
+          ThreadUI.saveDraft,
+          {preserve: true, autoSave: true}
+        );
       });
 
       test('thread: has message', function() {
@@ -833,7 +905,10 @@ suite('message_manager.js >', function() {
         MessageManager.onVisibilityChange();
 
         sinon.assert.calledOnce(ThreadUI.saveDraft);
-        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+        sinon.assert.calledWithMatch(
+          ThreadUI.saveDraft,
+          {preserve: true, autoSave: true}
+        );
       });
     });
 
@@ -848,7 +923,10 @@ suite('message_manager.js >', function() {
         MessageManager.onVisibilityChange();
 
         sinon.assert.calledOnce(ThreadUI.saveDraft);
-        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+        sinon.assert.calledWithMatch(
+          ThreadUI.saveDraft,
+          {preserve: true, autoSave: true}
+        );
       });
 
       test('new: no message, has recipients', function() {
@@ -861,7 +939,10 @@ suite('message_manager.js >', function() {
         MessageManager.onVisibilityChange();
 
         sinon.assert.calledOnce(ThreadUI.saveDraft);
-        sinon.assert.calledWithMatch(ThreadUI.saveDraft, {preserve: true});
+        sinon.assert.calledWithMatch(
+          ThreadUI.saveDraft,
+          {preserve: true, autoSave: true}
+        );
       });
     });
 

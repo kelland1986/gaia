@@ -22,7 +22,7 @@ var dcf = require('dcf');
  */
 
 var LOCATION_PROMPT_DELAY = constants.PROMPT_DELAY;
-var proto = evt.mix(App.prototype);
+evt.mix(App.prototype);
 var unbind = bind.unbind;
 
 /**
@@ -49,6 +49,7 @@ function App(options) {
   this.geolocation = options.geolocation;
   this.activity = options.activity;
   this.filmstrip = options.filmstrip;
+  this.storage = options.storage;
   this.camera = options.camera;
   this.sounds = options.sounds;
   this.views = options.views;
@@ -62,19 +63,18 @@ function App(options) {
  * to boot the app.
  *
  */
-proto.boot = function() {
+App.prototype.boot = function() {
   debug('boot');
   this.filmstrip = this.filmstrip(this);
   this.runControllers();
   this.injectContent();
   this.bindEvents();
   this.miscStuff();
-  this.geolocationWatch();
   this.emit('boot');
   debug('booted');
 };
 
-proto.teardown = function() {
+App.prototype.teardown = function() {
   this.unbindEvents();
 };
 
@@ -83,7 +83,7 @@ proto.teardown = function() {
  * the parts of the app together.
  *
  */
-proto.runControllers = function() {
+App.prototype.runControllers = function() {
   debug('running controllers');
   this.controllers.camera(this);
   this.controllers.viewfinder(this);
@@ -100,7 +100,7 @@ proto.runControllers = function() {
  *
  * @return {[type]} [description]
  */
-proto.injectContent = function() {
+App.prototype.injectContent = function() {
   this.views.hud.appendTo(this.el);
   this.views.controls.appendTo(this.el);
   this.views.viewfinder.appendTo(this.el);
@@ -112,7 +112,9 @@ proto.injectContent = function() {
  * Attaches event handlers.
  *
  */
-proto.bindEvents = function() {
+App.prototype.bindEvents = function() {
+  this.camera.once('configured', this.storage.check);
+  this.storage.once('checked:healthy', this.geolocationWatch);
   bind(this.doc, 'visibilitychange', this.onVisibilityChange);
   bind(this.win, 'beforeunload', this.onBeforeUnload);
   this.on('focus', this.onFocus);
@@ -122,9 +124,8 @@ proto.bindEvents = function() {
 
 /**
  * Detaches event handlers.
- *
  */
-proto.unbindEvents = function() {
+App.prototype.unbindEvents = function() {
   unbind(this.doc, 'visibilitychange', this.onVisibilityChange);
   unbind(this.win, 'beforeunload', this.onBeforeUnload);
   this.off('focus', this.onFocus);
@@ -136,19 +137,22 @@ proto.unbindEvents = function() {
  * Tasks to run when the
  * app becomes visible.
  *
+ * Check the storage again as users
+ * may have made changes since the
+ * app was minimised
  */
-proto.onFocus = function() {
+App.prototype.onFocus = function() {
   var ms = LOCATION_PROMPT_DELAY;
   setTimeout(this.geolocationWatch, ms);
+  this.storage.check();
   debug('focus');
 };
 
 /**
  * Tasks to run when the
  * app is minimised/hidden.
- *
  */
-proto.onBlur = function() {
+App.prototype.onBlur = function() {
   this.geolocation.stopWatching();
   this.activity.cancel();
   debug('blur');
@@ -161,7 +165,7 @@ proto.onBlur = function() {
  * isn't currently hidden.
  *
  */
-proto.geolocationWatch = function() {
+App.prototype.geolocationWatch = function() {
   var shouldWatch = !this.activity.active && !this.doc.hidden;
   if (shouldWatch) {
     this.geolocation.watch();
@@ -176,7 +180,7 @@ proto.geolocationWatch = function() {
  * work elsewhere,
  *
  */
-proto.onVisibilityChange = function() {
+App.prototype.onVisibilityChange = function() {
   if (this.doc.hidden) {
     this.emit('blur');
   } else {
@@ -189,7 +193,7 @@ proto.onVisibilityChange = function() {
  * app is destroyed.
  *
  */
-proto.onBeforeUnload = function() {
+App.prototype.onBeforeUnload = function() {
   this.views.viewfinder.setPreviewStream(null);
   this.emit('beforeunload');
   debug('beforeunload');
@@ -205,14 +209,14 @@ proto.onBeforeUnload = function() {
  * logic will sit in specific places.
  *
  */
-proto.miscStuff = function() {
+App.prototype.miscStuff = function() {
   var camera = this.camera;
   var focusTimeout;
   var self = this;
 
   // TODO: Should probably be
   // moved to a focusRing controller
-  camera.state.on('change:focusState', function(value) {
+  camera.on('change:focus', function(value) {
     self.views.focusRing.setState(value);
     clearTimeout(focusTimeout);
 
