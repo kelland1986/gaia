@@ -133,13 +133,13 @@ var NfcHandoverManager = {
   },
 
   getBluetoothMAC: function getBluetoothMAC(ndef) {
-    var handover = NfcUtil.parseHandoverNDEF(ndef);
+    var handover = NfcManagerUtil.parseHandoverNDEF(ndef);
     if (handover == null) {
       // Bad handover message. Just ignore.
       this.debug('Bad handover messsage');
       return null;
     }
-    var btsspRecord = NfcUtil.searchForBluetoothAC(handover);
+    var btsspRecord = NfcManagerUtil.searchForBluetoothAC(handover);
     if (btsspRecord == null) {
       // There is no Bluetooth Alternative Carrier record in the
       // Handover Select message. Since we cannot handle WiFi Direct,
@@ -147,7 +147,7 @@ var NfcHandoverManager = {
       this.debug('No BT AC');
       return null;
     }
-    var btssp = NfcUtil.parseBluetoothSSP(btsspRecord);
+    var btssp = NfcManagerUtil.parseBluetoothSSP(btsspRecord);
     return btssp.mac;
   },
 
@@ -197,7 +197,7 @@ var NfcHandoverManager = {
     var nfcPeer = this.nfc.getNFCPeer(session);
     var carrierPowerState = this.bluetooth.enabled ? 1 : 2;
     var mymac = this.defaultAdapter.address;
-    var hs = NfcUtil.encodeHandoverSelect(mymac, carrierPowerState);
+    var hs = NfcManagerUtil.encodeHandoverSelect(mymac, carrierPowerState);
     var req = nfcPeer.sendNDEF(hs);
     var self = this;
     req.onsuccess = function() {
@@ -230,7 +230,8 @@ var NfcHandoverManager = {
       var carrierPowerState = this.bluetooth.enabled ? 1 : 2;
       var rnd = Math.floor(Math.random() * 0xffff);
       var mac = this.defaultAdapter.address;
-      var hr = NfcUtil.encodeHandoverRequest(mac, carrierPowerState, rnd);
+      var hr = NfcManagerUtil.encodeHandoverRequest(mac, carrierPowerState,
+                                                    rnd);
       var req = nfcPeer.sendNDEF(hr);
       req.onsuccess = function() {
         self.debug('sendNDEF(hr) succeeded');
