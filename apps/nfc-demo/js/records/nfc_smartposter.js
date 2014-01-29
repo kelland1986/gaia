@@ -41,7 +41,7 @@ createEmailNdefRecord: function(aEmail, aTitle, aAction) {
   var payloadUtf8 = uriRec + actionRec + titleRec;
   payload = nfc.fromUTF8(payloadUtf8);
 
-  var main = new MozNdefRecord(
+  var main = new MozNDEFRecord(
     tnf,
     type,
     id,
@@ -67,7 +67,7 @@ createUriNdefRecord: function(aUri, aTitle, aAction) {
   var payloadUtf8 = uriRec + actionRec + titleRec;
   payload = nfc.fromUTF8(payloadUtf8);
 
-  var main = new MozNdefRecord(
+  var main = new MozNDEFRecord(
     tnf,
     type,
     id,

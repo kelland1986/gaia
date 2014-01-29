@@ -165,7 +165,7 @@ contactFormToNdefRecord: function(elementRef) {
   id = nfc.fromUTF8(id);
   payload = nfc.fromUTF8(payload);
 
-  var record = new MozNdefRecord(
+  var record = new MozNDEFRecord(
     tnf,
     type,
     id,
@@ -231,7 +231,7 @@ postContactFormToNdef: function(elementRef) {
 postEmptyTag: function() {
   console.log('XXXX Post empty tag XXXX');
   var empty = new Uint8Array(0);
-  var records = [new MozNdefRecord(nfc.tnf_empty, nfc.rtd_text, empty, empty)];
+  var records = [new MozNDEFRecord(nfc.tnf_empty, nfc.rtd_text, empty, empty)];
   nfcUI.postPendingMessage(records);
 },
 

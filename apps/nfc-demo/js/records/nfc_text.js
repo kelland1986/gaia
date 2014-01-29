@@ -27,7 +27,7 @@ createTextNdefRecord_Utf8: function(text, lang) {
     payload[k++] = text.charCodeAt(i);
   }
 
-  var record = new MozNdefRecord(
+  var record = new MozNDEFRecord(
     tnf,
     type,
     id,

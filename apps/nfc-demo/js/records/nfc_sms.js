@@ -21,7 +21,7 @@ createSmsNdefRecord: function(sms) {
                 '?body=' + sms.message;
   var payload = nfc.fromUTF8(payloadUtf8);
 
-  var record = new MozNdefRecord(
+  var record = new MozNDEFRecord(
     tnf,
     type,
     id,
