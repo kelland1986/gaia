@@ -9,12 +9,6 @@ var bindAll = require('utils/bindAll');
 var debug = require('debug')('controller:viewfinder');
 
 /**
- * Locals
- */
-
-var proto = ViewfinderController.prototype;
-
-/**
  * Exports
  */
 
@@ -40,16 +34,16 @@ function ViewfinderController(app) {
   debug('initialized');
 }
 
-proto.bindEvents = function() {
+ViewfinderController.prototype.bindEvents = function() {
   this.camera.on('configured', this.onConfigured);
   this.camera.on('change:mode', this.onConfigured);
   this.viewfinder.on('click', this.onViewfinderClick);
 };
 
-proto.onConfigured = function() {
+ViewfinderController.prototype.onConfigured = function() {
   debug('camera configured');
   this.viewfinder.updatePreview(this.camera.previewSize,
-                                this.camera.get('number') === 1);
+                                this.camera.get('selectedCamera') === 1);
   this.camera.loadStreamInto(this.viewfinder.el, onStreamLoaded);
   function onStreamLoaded(stream) {
     debug('stream loaded %d ms after dom began loading',
@@ -57,7 +51,7 @@ proto.onConfigured = function() {
   }
 };
 
-proto.onViewfinderClick = function() {
+ViewfinderController.prototype.onViewfinderClick = function() {
   var recording = this.camera.get('recording');
 
   // The filmstrip shouldn't be

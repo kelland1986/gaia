@@ -5,12 +5,6 @@
 suite('utils/camera-utils', function() {
   var CameraUtils;
 
-  // Sometimes setup via the
-  // test agent can take a while,
-  // so we need to bump timeout
-  // to prevent test failure.
-  this.timeout(3000);
-
   suiteSetup(function(done) {
     var self = this;
 
@@ -242,7 +236,7 @@ suite('utils/camera-utils', function() {
   suite('selectOptimalPreviewSize', function() {
     setup(function() {});
 
-    test('Should select optimal preview size to '
+    test('Should select optimal preview size to ' +
          '*FILL* viewport preserving aspect ratio', function() {
       var viewportSize, optimalPreviewSize;
       var previewSizes = [

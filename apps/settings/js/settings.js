@@ -263,6 +263,18 @@ var Settings = {
       });
     }
 
+    // we hide all entry points by default,
+    // so we have to detect and show them up
+    if (navigator.mozMobileConnections) {
+      if (navigator.mozMobileConnections.length == 1) {
+        // single sim
+        document.getElementById('simCardManager-settings').hidden = true;
+      } else {
+        // dsds
+        document.getElementById('simSecurity-settings').hidden = true;
+      }
+    }
+
     // register web activity handler
     navigator.mozSetMessageHandler('activity', this.webActivityHandler);
 
@@ -485,6 +497,7 @@ var Settings = {
       for (i = 0; i < spanFields.length; i++) {
         var key = spanFields[i].dataset.name;
 
+        //XXX intentionally checking for the string 'undefined', see bug 880617
         if (key && result[key] && result[key] != 'undefined') {
           // check whether this setting comes from a select option
           // (it may be in a different panel, so query the whole document)
@@ -773,7 +786,7 @@ var Settings = {
                      'shared/style/buttons.css',
                      'shared/style/confirm.css',
                      'shared/style/input_areas.css',
-                     'shared/style_unstable/progress_activity.css',
+                     'shared/style/progress_activity.css',
                      'style/apps.css',
                      'style/phone_lock.css',
                      'style/simcard.css',
@@ -802,6 +815,10 @@ window.addEventListener('load', function loadSettings() {
 
     LazyLoader.load(['shared/js/wifi_helper.js'], displayDefaultPanel);
 
+    /**
+     * Enable or disable the menu items related to the ICC card relying on the
+     * card and radio state.
+     */
     LazyLoader.load([
       'shared/js/airplane_mode_helper.js',
       'js/airplane_mode.js',
@@ -812,6 +829,7 @@ window.addEventListener('load', function loadSettings() {
       'shared/js/mobile_operator.js',
       'shared/js/icc_helper.js',
       'shared/js/settings_listener.js',
+      'shared/js/toaster.js',
       'js/connectivity.js',
       'js/security_privacy.js',
       'js/icc_menu.js',
@@ -819,7 +837,9 @@ window.addEventListener('load', function loadSettings() {
       'js/dsds_settings.js',
       'js/telephony_settings.js',
       'js/telephony_items_handler.js'
-    ], handleTelephonyItems);
+    ], function() {
+      TelephonySettingHelper.init();
+    });
   });
 
   function displayDefaultPanel() {
@@ -837,25 +857,6 @@ window.addEventListener('load', function loadSettings() {
     if (Settings.isTabletAndLandscape()) {
       Settings.currentPanel = Settings.defaultPanelForTablet;
     }
-  }
-
-  /**
-   * Enable or disable the menu items related to the ICC card relying on the
-   * card and radio state.
-   */
-  function handleTelephonyItems() {
-    // we hide all entry points by default,
-    // so we have to detect and show them up
-    if (navigator.mozMobileConnections) {
-      if (navigator.mozMobileConnections.length == 1) {
-        // single sim
-        document.getElementById('simSecurity-settings').hidden = false;
-      } else {
-        // dsds
-        document.getElementById('simCardManager-settings').hidden = false;
-      }
-    }
-    TelephonySettingHelper.init();
   }
 
   // startup

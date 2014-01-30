@@ -6,12 +6,6 @@ suite('controllers/camera', function() {
   var modules = {};
   var Controller;
 
-  // Sometimes setup via the
-  // test agent can take a while,
-  // so we need to bump timeout
-  // to prevent test failure.
-  this.timeout(3000);
-
   suiteSetup(function(done) {
 
     req([
@@ -69,7 +63,7 @@ suite('controllers/camera', function() {
 
     test('Should set the capture mode to \'camera\' by default', function() {
       this.controller = new Controller(this.app);
-      assert.isTrue(this.app.camera.set.calledWith('mode', 'camera'));
+      assert.isTrue(this.app.camera.set.calledWith('mode', 'photo'));
     });
 
     test('Should set the capture mode to the mode' +

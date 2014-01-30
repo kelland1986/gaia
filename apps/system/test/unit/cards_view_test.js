@@ -4,7 +4,7 @@
 // Ignore leak, otherwise an error would occur when using MockMozActivity.
 mocha.setup({ignoreLeaks: true});
 
-requireApp('system/test/unit/mock_gesture_detector.js');
+require('/shared/test/unit/mocks/mock_gesture_detector.js');
 requireApp('system/test/unit/mock_screen_layout.js');
 requireApp('system/test/unit/mock_trusted_ui_manager.js');
 requireApp('system/test/unit/mock_utility_tray.js');
@@ -257,7 +257,7 @@ suite('cards view >', function() {
 
       test('removes task-manager class', function() {
         var screen = document.getElementById('screen');
-        CardsView.hideCardSwitcher();
+        CardsView.hideCardSwitcher(true);
         assert.isFalse(screen.classList.contains('task-manager'));
       });
     });
@@ -275,8 +275,7 @@ suite('cards view >', function() {
       CardsView.showCardSwitcher(null, true);
 
       var evt = dispatchStub.getCall(0).args[0];
-      assert.equal(evt.type, 'cardchange');
-      assert.equal(evt.detail.title, '');
+      assert.equal(evt.type, 'cardviewclosed');
     });
   });
 });

@@ -21,7 +21,7 @@ var CallLog = {
       '/dialer/style/fixed_header.css',
       '/shared/style/confirm.css',
       '/shared/style/switches.css',
-      '/shared/style_unstable/lists.css',
+      '/shared/style/lists.css',
       '/contacts/js/utilities/confirm.js',
       '/dialer/js/phone_action_menu.js',
       '/dialer/js/fixed_header.js',
@@ -659,7 +659,9 @@ var CallLog = {
     this.missedFilter.setAttribute('aria-selected', 'false');
 
     var hiddenContainers = document.getElementsByClassName('groupFiltered');
-    for (var i = 0, l = hiddenContainers.length; i < l; i++) {
+    // hiddenContainers is a live list, so let's iterate on the list in the
+    // reverse order.
+    for (var i = (hiddenContainers.length - 1); i >= 0; i--) {
       hiddenContainers[i].classList.remove('groupFiltered');
     }
   },

@@ -650,6 +650,24 @@ class YoctoAmmeter(YoctoDevice):
             raise Exception('yocto device is not logging data')
         self.events.append([self.data_logger.get_timeUTC(), desc])
 
+class Accessibility(object):
+
+    def __init__(self, marionette):
+        self.marionette = marionette
+        js = os.path.abspath(os.path.join(__file__, os.path.pardir,
+                                          'atoms', "accessibility.js"))
+        self.marionette.import_script(js)
+
+    def is_hidden(self, element):
+        return self.marionette.execute_async_script(
+            'return Accessibility.isHidden.apply(Accessibility, arguments)',
+            [element], special_powers=True)
+
+    def click(self, element):
+        self.marionette.execute_async_script(
+            'Accessibility.click.apply(Accessibility, arguments)',
+            [element], special_powers=True)
+
 
 class GaiaDevice(object):
 
@@ -659,6 +677,12 @@ class GaiaDevice(object):
         self.lockscreen_atom = os.path.abspath(
             os.path.join(__file__, os.path.pardir, 'atoms', "gaia_lock_screen.js"))
         self.marionette.import_script(self.lockscreen_atom)
+        self.fakeupdatechecker_atom = os.path.abspath(
+            os.path.join(__file__, os.path.pardir, 'atoms', "fake_update-checker.js"))
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+        self.marionette.import_script(self.fakeupdatechecker_atom)
+        self.marionette.execute_script("GaiaUITests_FakeUpdateChecker();")
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
 
     def add_device_manager(self, device_manager):
         self._manager = device_manager
@@ -751,6 +775,10 @@ window.addEventListener('mozbrowserloadend', function loaded(aEvent) {
             # TODO: Remove this sleep when Bug 924912 is addressed
             time.sleep(5)
         self.marionette.import_script(self.lockscreen_atom)
+        self.marionette.set_context(self.marionette.CONTEXT_CHROME)
+        self.marionette.import_script(self.fakeupdatechecker_atom)
+        self.marionette.execute_script("GaiaUITests_FakeUpdateChecker();")
+        self.marionette.set_context(self.marionette.CONTEXT_CONTENT)
 
     def stop_b2g(self):
         if self.marionette.instance:
@@ -847,6 +875,7 @@ class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
         self.data_layer = GaiaData(self.marionette, self.testvars)
         from gaiatest.apps.keyboard.app import Keyboard
         self.keyboard = Keyboard(self.marionette)
+        self.accessibility = Accessibility(self.marionette)
 
         if self.device.is_android_build:
             self.cleanup_sdcard()

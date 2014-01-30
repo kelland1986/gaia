@@ -51,9 +51,9 @@
     <link rel="stylesheet" type="text/css" href="shared/style/input_areas.css">
     <link rel="stylesheet" type="text/css" href="shared/style/headers.css"/>
     <link rel="stylesheet" type="text/css" href="shared/style/switches.css"/>
-    <link rel="stylesheet" type="text/css" href="shared/style_unstable/value_selector.css">
-    <link rel="stylesheet" type="text/css" href="shared/style_unstable/date_selector.css">
-    <link rel="stylesheet" type="text/css" href="shared/style_unstable/time_selector.css">
+    <link rel="stylesheet" type="text/css" href="shared/style/value_selector.css">
+    <link rel="stylesheet" type="text/css" href="shared/style/date_selector.css">
+    <link rel="stylesheet" type="text/css" href="shared/style/time_selector.css">
 
     <link rel="stylesheet" type="text/css" href="style/fake-notification.css"/>
 
@@ -120,9 +120,6 @@
     <link rel="stylesheet" type="text/css" href="shared/style/action_menu.css">
     <link rel="stylesheet" type="text/css" href="style/action_menu/action_menu_extended.css">
     <script defer src="js/action_menu.js"></script>
-
-    <!-- Context Menu -->
-    <script defer src="js/context_menu.js"></script>
 
     <!-- Statusbar -->
     <link rel="stylesheet" type="text/css" href="style/statusbar/statusbar.css">
@@ -292,6 +289,7 @@
     <!-- homescreen from being displayed must come before this script. -->
     <link rel="stylesheet" type="text/css" href="style/window.css">
     <script defer src="js/base_ui.js"></script>
+    <script defer src="js/browser_context_menu.js"></script>
     <script defer src="js/app_modal_dialog.js"></script>
     <script defer src="js/app_chrome.js"></script>
     <script defer src="js/app_transition_controller.js"></script>
@@ -1047,7 +1045,7 @@
               <div id="lockscreen-conn-states" hidden></div>
               <div id="lockscreen-mute" hidden></div>
               <div id="lockscreen-alt-camera" class="lockscreen-icon">
-                <div role="button" data-l10n-id="camera-a11y-button" aria-label="Camera"></div>
+                <div id="lockscreen-alt-camera-button" role="button" data-l10n-id="camera-a11y-button" aria-label="Camera"></div>
               </div>
               <div class="lockscreen-clock">
                 <span id="lockscreen-clock-numbers"></span>

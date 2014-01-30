@@ -3,12 +3,6 @@
 suite('activity', function() {
   var Activity;
 
-  // Sometimes setup via the
-  // test agent can take a while,
-  // so we need to bump timeout
-  // to prevent test failure.
-  this.timeout(3000);
-
   suiteSetup(function(done) {
     req(['activity'], function(_activity) {
       Activity = _activity;
@@ -146,10 +140,10 @@ suite('activity', function() {
       }
     });
 
-    assert.equal(output.mode, 'camera');
+    assert.equal(output.mode, 'photo');
   });
 
-  test('Should return \'camera\' mode if just image type allowed', function() {
+  test('Should return \'photo\' mode if just image type allowed', function() {
     var output = this.activity.parse({
       source: {
         name: 'pick',
@@ -159,7 +153,7 @@ suite('activity', function() {
       }
     });
 
-    assert.equal(output.mode, 'camera');
+    assert.equal(output.mode, 'photo');
   });
 
   test('Should return \'video\' mode if just video type allowed', function() {
