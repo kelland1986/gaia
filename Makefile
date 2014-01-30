@@ -600,7 +600,7 @@ endef
 define run-node-command
 	echo "run-node-command $1";
 	node --harmony -e \
-	"require('.$(SEP)build$(SEP)$(strip $1).js').execute($$BUILD_CONFIG)"
+	"require('./build/$(strip $1).js').execute($$BUILD_CONFIG)"
 endef
 
 # Optional files that may be provided to extend the set of default
@@ -858,7 +858,7 @@ gjslint:
 	# gjslint --disable 210,217,220,225 replaces --nojsdoc because it's broken in closure-linter 2.3.10
 	# http://code.google.com/p/closure-linter/issues/detail?id=64
 	@echo Running gjslint...
-	@gjslint --disable 210,217,220,225 --custom_jsdoc_tags="event,example,mixes,mixin,fires,inner,todo,access,namespace,listens,module,memberOf,property" -e '$(GJSLINT_EXCLUDED_DIRS)' -x '$(GJSLINT_EXCLUDED_FILES)' $(GJSLINTED_PATH) $(LINTED_FILES)
+	@gjslint --disable 210,217,220,225 --custom_jsdoc_tags="prop,borrows,memberof,augments,exports,global,event,example,mixes,mixin,fires,inner,todo,access,namespace,listens,module,memberOf,property" -e '$(GJSLINT_EXCLUDED_DIRS)' -x '$(GJSLINT_EXCLUDED_FILES)' $(GJSLINTED_PATH) $(LINTED_FILES)
 	@echo Note: gjslint only checked the files that are xfailed for jshint.
 
 JSHINT_ARGS := --reporter=build/jshint/xfail $(JSHINT_ARGS)
@@ -951,6 +951,7 @@ purge:
 	$(ADB) shell rm -r $(MSYS_FIX)/data/local/webapps
 	$(ADB) remount
 	$(ADB) shell rm -r $(MSYS_FIX)/system/b2g/webapps
+	$(ADB) shell 'if test -d $(MSYS_FIX)/persist/svoperapps; then rm -r $(MSYS_FIX)/persist/svoperapps; fi'
 
 $(PROFILE_FOLDER)/settings.json: profile-dir install-xulrunner-sdk
 ifeq ($(BUILD_APP_NAME),*)
@@ -1004,5 +1005,6 @@ build-test-unit: $(NPM_INSTALLED_PROGRAMS)
 build-test-integration: $(NPM_INSTALLED_PROGRAMS)
 	@$(call run-build-test, $(shell find build/test/integration/*.test.js))
 
+.PHONY: docs
 docs: $(NPM_INSTALLED_PROGRAMS)
 	grunt docs

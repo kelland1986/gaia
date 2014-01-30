@@ -263,14 +263,12 @@ apps/clock/test/unit/timer_panel_test.js
 apps/clock/test/unit/timer_test.js
 apps/clock/test/unit/utils_test.js
 apps/clock/test/unit/view_test.js
-apps/communications/contacts/js/activities.js
 apps/communications/contacts/js/contacts.js
 apps/communications/contacts/js/contacts_cleaner.js
 apps/communications/contacts/js/contacts_importer.js
 apps/communications/contacts/js/contacts_matcher.js
 apps/communications/contacts/js/contacts_matching_controller.js
 apps/communications/contacts/js/contacts_matching_ui.js
-apps/communications/contacts/js/contacts_merger.js
 apps/communications/contacts/js/contacts_shortcuts.js
 apps/communications/contacts/js/contacts_tag.js
 apps/communications/contacts/js/export/bt.js
@@ -296,7 +294,6 @@ apps/communications/contacts/js/importer_ui.js
 apps/communications/contacts/js/navigation.js
 apps/communications/contacts/js/service_extensions.js
 apps/communications/contacts/js/sms_integration.js
-apps/communications/contacts/js/utilities/binary_search.js
 apps/communications/contacts/js/utilities/config.js
 apps/communications/contacts/js/utilities/confirm.js
 apps/communications/contacts/js/utilities/event_listeners.js
@@ -328,11 +325,9 @@ apps/communications/contacts/test/marionette/form_test.js
 apps/communications/contacts/test/marionette/lib/contacts.js
 apps/communications/contacts/test/marionette/lib/sms.js
 apps/communications/contacts/test/marionette/search_test.js
-apps/communications/contacts/test/unit/contacts_activities_test.js
 apps/communications/contacts/test/unit/contacts_matcher_test.js
 apps/communications/contacts/test/unit/contacts_matching_ui_test.js
 apps/communications/contacts/test/unit/contacts_matching_ui_test_data.js
-apps/communications/contacts/test/unit/contacts_merger_test.js
 apps/communications/contacts/test/unit/contacts_tag_test.js
 apps/communications/contacts/test/unit/datastore_migrator_test.js
 apps/communications/contacts/test/unit/export/bt_test.js
@@ -340,7 +335,6 @@ apps/communications/contacts/test/unit/export/generic_export_test.js
 apps/communications/contacts/test/unit/export/sim_test.js
 apps/communications/contacts/test/unit/fb_data_test.js
 apps/communications/contacts/test/unit/fb_reader_utils_test.js
-apps/communications/contacts/test/unit/fb_tel_index_test.js
 apps/communications/contacts/test/unit/helper.js
 apps/communications/contacts/test/unit/import_vcard_test.js
 apps/communications/contacts/test/unit/link_test.js
@@ -881,7 +875,6 @@ apps/search/test/unit/search_test.js
 apps/setringtone/js/share.js
 apps/settings/js/about.js
 apps/settings/js/about_more_info.js
-apps/settings/js/about_more_info_developer.js
 apps/settings/js/airplane_mode.js
 apps/settings/js/app_storage.js
 apps/settings/js/apps.js
@@ -1081,7 +1074,6 @@ apps/system/js/system.js
 apps/system/js/system_banner.js
 apps/system/js/system_dialog.js
 apps/system/js/telephony_settings.js
-apps/system/js/title.js
 apps/system/js/trusted_ui.js
 apps/system/js/ttlview.js
 apps/system/js/updatable.js
@@ -1098,7 +1090,9 @@ apps/system/js/wrapper_factory.js
 apps/system/test/marionette/edges_gesture_test.js
 apps/system/test/marionette/fakemusic/js/comms.js
 apps/system/test/marionette/fakemusic/js/fakemusic.js
+apps/system/test/marionette/fullscreen_app_alert_test.js
 apps/system/test/marionette/lib/fake_music.js
+apps/system/test/marionette/lib/fullscreen_app.js
 apps/system/test/marionette/lib/media_playback.js
 apps/system/test/marionette/lib/notification.js
 apps/system/test/marionette/lib/system.js
@@ -1235,7 +1229,6 @@ apps/system/test/unit/stack_manager_test.js
 apps/system/test/unit/statusbar_test.js
 apps/system/test/unit/storage_watcher_test.js
 apps/system/test/unit/template_test.js
-apps/system/test/unit/title_test.js
 apps/system/test/unit/updatable_test.js
 apps/system/test/unit/update_manager_test.js
 apps/system/test/unit/utility_tray_test.js
@@ -1285,7 +1278,6 @@ shared/js/dump.js
 shared/js/fb/fb_data_reader.js
 shared/js/fb/fb_reader_utils.js
 shared/js/fb/fb_request.js
-shared/js/fb/fb_tel_index.js
 shared/js/format.js
 shared/js/fxa_iac_client.js
 shared/js/gesture_detector.js
