@@ -120,32 +120,26 @@ var MessageManager = {
   },
 
   slide: function mm_slide(direction, callback) {
+    var wrapper = this.mainWrapper;
+
     // If no sliding is necessary, schedule the callback to be invoked as soon
     // as possible (maintaining the asynchronous API of this method)
-    if (this.mainWrapper.dataset.position === direction) {
+    if (wrapper.dataset.position === direction) {
       setTimeout(callback);
       return;
     }
+    wrapper.dataset.position = direction;
 
-    this.mainWrapper.classList.add('peek');
-    this.mainWrapper.dataset.position = direction;
-    var self = this;
     // We have 2 panels, so we get 2 transitionend for each step
     var trEndCount = 0;
-    this.mainWrapper.addEventListener('transitionend', function trWait() {
+    wrapper.addEventListener('transitionend', function trWait(e) {
       trEndCount++;
-
-      switch (trEndCount) {
-        case 2:
-          self.mainWrapper.classList.remove('peek');
-          break;
-        case 4:
-          self.mainWrapper.removeEventListener('transitionend', trWait);
-          if (callback) {
-            callback();
-          }
-          break;
+      if (trEndCount != 2) {
+        return;
       }
+
+      wrapper.removeEventListener(e.type, trWait);
+      callback && callback();
     });
   },
 
@@ -375,14 +369,25 @@ var MessageManager = {
   },
   // TODO: Optimize this method. Tracked:
   // https://bugzilla.mozilla.org/show_bug.cgi?id=929919
-  getThreads: function mm_getThreads(callback, extraArg) {
-    var cursor = this._mozMobileMessage.getThreads(),
-        threads = [];
+  getThreads: function mm_getThreads(options) {
+    /*
+    options {
+      each: callback function invoked for each message
+      end: callback function invoked when cursor is "done"
+      done: callback function invoked when we stopped iterating, either because
+            it's the end or because it was stopped. It's invoked after the "end"
+            callback.
+    }
+    */
+
+    var cursor = this._mozMobileMessage.getThreads();
+
+    var each = options.each;
+    var end = options.end;
+    var done = options.done;
 
     cursor.onsuccess = function onsuccess() {
       if (this.result) {
-        threads.push(this.result);
-
         // Register all threads to the Threads object.
         Threads.set(this.result.id, this.result);
 
@@ -392,17 +397,19 @@ var MessageManager = {
           ThreadUI.updateHeaderData();
         }
 
+        each && each(this.result);
+
         this.continue();
         return;
       }
-      if (callback) {
-        callback(threads, extraArg);
-      }
+
+      end && end();
+      done && done();
     };
 
     cursor.onerror = function onerror() {
-      var msg = 'Reading the database. Error: ' + this.error.name;
-      console.log(msg);
+      console.error('Reading the database. Error: ' + this.error.name);
+      done && done();
     };
   },
 

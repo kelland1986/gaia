@@ -701,7 +701,7 @@ class GaiaDevice(object):
     @property
     def is_android_build(self):
         if self.testvars.get('is_android_build') is None:
-            self.testvars['is_android_build'] = 'Android' in self.marionette.session_capabilities['platform']
+            self.testvars['is_android_build'] = 'Android' in self.marionette.session_capabilities['platformName']
         return self.testvars['is_android_build']
 
     @property
@@ -754,7 +754,7 @@ class GaiaDevice(object):
         time.sleep(2)
         self.start_b2g()
 
-    def start_b2g(self):
+    def start_b2g(self, timeout=60000):
         if self.marionette.instance:
             # launch the gecko instance attached to marionette
             self.marionette.instance.start()
@@ -771,7 +771,7 @@ window.addEventListener('mozbrowserloadend', function loaded(aEvent) {
     window.removeEventListener('mozbrowserloadend', loaded);
     marionetteScriptFinished();
   }
-});""", script_timeout=60000)
+});""", script_timeout=timeout)
             # TODO: Remove this sleep when Bug 924912 is addressed
             time.sleep(5)
         self.marionette.import_script(self.lockscreen_atom)
@@ -904,6 +904,15 @@ class GaiaTestCase(MarionetteTestCase, B2GTestCaseMixin):
 
         # restore settings from testvars
         [self.data_layer.set_setting(name, value) for name, value in self.testvars.get('settings', {}).items()]
+
+        # restore prefs from testvars
+        for name, value in self.testvars.get('prefs', {}).items():
+            if type(value) is int:
+                self.data_layer.set_int_pref(name, value)
+            elif type(value) is bool:
+                self.data_layer.set_bool_pref(name, value)
+            else:
+                self.data_layer.set_char_pref(name, value)
 
         # unlock
         self.device.unlock()
