@@ -1,4 +1,5 @@
 'use strict';
+/* global AppWindowManager, LockScreen, SettingsListener */
 
 var Rocketbar = {
 
@@ -14,7 +15,7 @@ var Rocketbar = {
    * How much room on the statusbar will trigger the rocketbar
    * when tapped on.
    */
-  triggerWidth: 0.65,
+  triggerWidth: 0.5,
 
   searchAppURL: null,
 
@@ -61,14 +62,12 @@ var Rocketbar = {
     });
 
     delete this.searchInput;
-    return this.searchInput = input;
+    this.searchInput = input;
+    return input;
   },
 
   handleEvent: function(e) {
     switch (e.type) {
-      case 'cardchange':
-        this.searchInput.value = e.detail.title;
-        return;
       case 'cardviewclosedhome':
         // Stop listeneing for cardviewclosed if we pressed the home button.
         // This is necessary due to keeping backwards compatability with the
@@ -91,6 +90,7 @@ var Rocketbar = {
         e.stopImmediatePropagation();
         return;
       case 'home':
+      case 'lock':
       case 'appopened':
         this.hide();
         return;
@@ -103,6 +103,7 @@ var Rocketbar = {
             action: 'syncPlaces'
           });
         }
+        break;
       default:
         break;
     }
@@ -114,17 +115,21 @@ var Rocketbar = {
         // Show the card switcher again if we opened the rocketbar
         // in task manager mode. There needs to be a current card.
         var runningApps = AppWindowManager.getRunningApps();
-        if (!this.screen.classList.contains('task-manager') &&
-            this.home === 'tasks' && Object.keys(runningApps).length > 1) {
+        var numRunningApps = Object.keys(runningApps).length;
+        var inTaskManager = this.screen.classList.contains('task-manager');
+
+        if (!inTaskManager && this.home === 'tasks' && numRunningApps > 1) {
           window.dispatchEvent(new CustomEvent('taskmanagershow'));
+          this.searchInput.value = '';
           // Send a message to the search app to clear results
           if (this._port) {
             this._port.postMessage({
               action: 'clear'
             });
           }
+        } else if (inTaskManager && numRunningApps > 1) {
+          window.dispatchEvent(new CustomEvent('opencurrentcard'));
         } else {
-          window.dispatchEvent(new CustomEvent('taskmanagerhide'));
           this.hide();
         }
         break;
@@ -137,15 +142,15 @@ var Rocketbar = {
         break;
       case 'search-input':
         if (e.type === 'blur') {
+          // Clear the input if we are in task manager and blur
+          if (this.screen.classList.contains('task-manager')) {
+            this.searchInput.value = '';
+          }
+
           this.screen.classList.remove('rocketbar-focus');
           return;
         }
         this.screen.classList.add('rocketbar-focus');
-
-        // If the current text is not a URL, clear it.
-        if (UrlHelper.isNotURL(this.searchInput.value)) {
-          this.searchInput.value = '';
-        }
 
         this.updateResetButton();
         break;
@@ -161,16 +166,15 @@ var Rocketbar = {
 
     // Hide task manager when we focus on search bar
     this.searchInput.addEventListener('focus', this);
-
     this.searchInput.addEventListener('blur', this);
 
     window.addEventListener('apptitlechange', this);
     window.addEventListener('applocationchange', this);
     window.addEventListener('appopened', this);
-    window.addEventListener('cardchange', this);
     window.addEventListener('cardviewclosed', this);
     window.addEventListener('cardviewclosedhome', this);
     window.addEventListener('home', this);
+    window.addEventListener('lock', this);
 
     this.searchCancel.addEventListener('click', this);
     // Prevent default on mousedown
@@ -257,7 +261,7 @@ var Rocketbar = {
           }
         },
         function onConnectionRejected(reason) {
-          dump('Error connecting: ' + reason + '\n');
+          console.log('Error connecting: ' + reason + '\n');
         }
       );
     };
@@ -286,8 +290,9 @@ var Rocketbar = {
    * @param {String} event type that triggers the hide.
    */
   hide: function() {
-    if (!this.shown)
+    if (!this.shown) {
       return;
+    }
 
     document.body.removeEventListener('keyboardchange', this, true);
 
@@ -314,8 +319,9 @@ var Rocketbar = {
    * @param {Boolean} isTaskManager, true if we are opening in task manager.
    */
   render: function(isTaskManager) {
-    if (LockScreen.locked)
+    if (LockScreen.locked) {
       return;
+    }
 
     if (this.shown) {
       return;

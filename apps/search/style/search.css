@@ -95,10 +95,10 @@ section.apps {
 
 section.apps section {
   display: inline;
-  font-size: 1rem;
+  font-size: 0.8125rem;
 }
 
-section.apps div {
+section.apps .result {
   width: calc(100%/4 - 0.4rem);
   display: inline-block;
   text-align: center;
