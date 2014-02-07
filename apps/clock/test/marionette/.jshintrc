@@ -1,22 +1,18 @@
 {
   "extends": "../../../../.jshintrc",
+  "node": true,
   "predef": [
-    "Calendar",
-    "InputParser",
-    "assert",
     "suite",
     "test",
-    "testSupport",
     "setup",
     "teardown",
-    "suiteGroup",
     "suiteSetup",
     "suiteTeardown",
+    "marionette",
+    "marionetteScriptFinished",
     "require",
+    "define",
     "requireApp",
-    "requireCommon",
-    "sinon",
-    "mocha",
-    "loadBodyHTML"
+    "sinon"
   ]
 }
