@@ -30,6 +30,7 @@ lookupUrlRecordType: function(uri) {
 createUriNdefRecord: function(uri, abbreviate) {
   var uriPayload = null;
   if (uri == null) {
+    debug("XXXXXXXXXXXXXXXXXXXX We've go NOTHING");
     return null;
   }
 

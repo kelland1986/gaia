@@ -394,12 +394,36 @@ function handleNdefDiscoveredMessages(ndefmessage) {
   $('#actionlist').listview('refresh');
 }
 
-function handleTechnologyDiscovered(sessionToken) {
-  debug('Unimplemented NFC Technology Handler');
+function handleTechnologyDiscovered(activityData) {
+  debug('Mostly unimplemented NFC Technology Handler');
+  debug('Activity Data Session: ' + activityData.sessionToken);
+  // Establish a session to the tag:
+  var nfcdom = window.navigator.mozNfc;
+  if (activityData.sessionToken) {
+    var nfcTag = nfcdom.getNFCTag(activityData.sessionToken);
+    nfcUI.nfcTag = nfcTag;
+    if (!nfcTag) {
+      debug("Error, can't get NFC Tag session.");
+    }
+  } else {
+    debug('Activity has no session information');
+  }
 }
 
-function handleTagDiscoveredMessages(sessionToken, nfcevent) {
-  debug('Unimplemented NFC Tag Handler');
+function handleTagDiscoveredMessages(activityData) {
+  debug('Mostly unimplemented NFC Tag Handler');
+  debug('Activity Data Session: ' + activityData.sessionToken);
+  // Establish a session to the tag:
+  var nfcdom = window.navigator.mozNfc;
+  if (activityData.sessionToken) {
+    var nfcTag = nfcdom.getNFCTag(activityData.sessionToken);
+    nfcUI.nfcTag = nfcTag;
+    if (!nfcTag) {
+      debug("Error, can't get NFC Tag session.");
+    }
+  } else {
+    debug('Activity has no session information');
+  }
 }
 
 var dbgcnt = 0;
@@ -447,13 +471,15 @@ function NfcActivityHandler(activity) {
     nfcUI.setConnectedState(true);
     // If there is a pending tag write, apply that write now.
     nfcUI.writePendingMessage();
-    handleTechnologyDiscovered(data.sessionToken);
+    handleTechnologyDiscovered(data);
     break;
   case 'nfc-tag-discovered':
     debug('XX Received Activity: nfc tag message(s): ' +
           JSON.stringify(data.records));
     nfcUI.setConnectedState(true);
-    handleTagDiscoveredMessages(data.sessionToken);
+    // If there is a pending tag write, apply that write now.
+    nfcUI.writePendingMessage();
+    handleTagDiscoveredMessages(data);
     break;
   case 'nfc-tech-lost':
     debug('XX Received Activity: nfc-tech-lost: ' +

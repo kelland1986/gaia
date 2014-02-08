@@ -75,10 +75,10 @@ setMessageArea: function(elementRefName) {
 writePendingMessage: function() {
   if (this.pendingNdefMessage != null) {
     debug('Write pending message');
+    debug('Message: ' + this.pendingNdefMessage);
     var pendingDomRequest = nfcWriter.writeRecordArrayTag(
       this.pendingNdefMessage);
     this.commonRequestHandler(pendingDomRequest);
-    this.pendingNdefMessage = null;
   }
 },
 
@@ -127,6 +127,7 @@ commonRequestHandler: function(pending) {
       debug(message);
       // Dismiss dialog, and do anything else you want for UI/UX.
       nfcUI.closeTagWriteDialog();
+      nfcUI.pendingNdefMessage = null;
       if (nfcUI.messageArea == null) {
         alert('Message: ' + message);
         return;
@@ -141,6 +142,7 @@ commonRequestHandler: function(pending) {
       var message = 'Error writing tag. (Result: ' + JSON.stringify(msg) + ')';
       debug(message);
       nfcUI.closeTagWriteDialog();
+      nfcUI.pendingNdefMessage = null;
       if (nfcUI.messageArea == null) {
         alert('Error: ' + message);
         return;

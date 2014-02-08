@@ -327,17 +327,17 @@ var NfcManager = {
     var self = this;
     // Fire off activity to whoever is registered to handle a generic
     // binary blob.
-    var technologyTags = command.tag;
+    var techList = command.techList;
     var a = new MozActivity({
-      name: 'tag-discovered',
+      name: 'nfc-tag-discovered',
       data: {
         type: 'tag',
-        sessionId: command.sessionToken,
-        tag: technologyTags
+        sessionToken: command.sessionToken,
+        techList: techList
       }
     });
     a.onerror = function() {
-      self._debug('Firing tag-discovered failed');
+      self._debug('Firing nfc-tag-discovered failed');
     };
   },
 

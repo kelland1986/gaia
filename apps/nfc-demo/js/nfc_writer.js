@@ -18,7 +18,9 @@ var nfcWriter = {
  * and onerror.
  */
 writeRecordArrayTag: function(ndefRecords) {
+  debug("writeRecordArrayTag: " + ndefRecords);
   if (ndefRecords == null) {
+    debug("Error: Nothing passed in.");
     return null;
   }
   if (!nfcUI.p2p) {
@@ -36,6 +38,7 @@ writeRecordArrayTag: function(ndefRecords) {
       return domreq;
     }
   }
+  debug("Error: did not write, no connection.");
   return null;
 },
 
@@ -45,15 +48,20 @@ writeRecordArrayTag: function(ndefRecords) {
 
 // Text Example:
 textFormToNdefRecord: function(elementRef) {
-  var text = $(elementRef + ' > .text').val();
+  //var text = $(elementRef + ' > .text').val();
+  var text = $(elementRef).find('.text').val();
   record = nfcText.createTextNdefRecord_Utf8(text, 'en');
   return record;
 },
 
 // URL:
 urlFormToNdefRecord: function(elementRef, abbreviate) {
-  var uri = $(elementRef + ' > .uri').val();
+  debug("Trying to get URI...");
+  var uri = $(elementRef).find('.uri').val();
+  //var uri = $(elementRef + ' > .uri').val();
+  debug("URI is: " + uri);
   record = nfcUri.createUriNdefRecord(uri, abbreviate);
+  debug("Record is: " + record); 
   return record;
 },
 
