@@ -254,7 +254,7 @@ function handleNdefDiscovered(activityData) {
 function handleNdefType(sessionToken, techType) {
   var handled = false;
   // Get a tag DOM object:
-  var nfcTag = nfcUI.nfcTag;
+  var nfcTag = window.navigator.mozNfc.getNFCTag(sessionToken);
   // connect:
   var connreq = nfcTag.connect(techType);
   connreq.onsuccess = function() {
@@ -268,9 +268,9 @@ function handleNdefType(sessionToken, techType) {
       var readreq = nfcTag.readNDEF();
       readreq.onsuccess = function() {
         debug('Read success.');
-        debug('readreq: ' + JSON.stringify(readreq.result.records));
+        debug('readreq: ' + JSON.stringify(readreq.result));
         // Update UI:
-        handleNdefDiscoveredMessages(readreq.result.records);
+        handleNdefDiscoveredMessages(readreq.result);
         handled = true;
         var closeTagReq = nfcTag.close();
         closeTagReq.onerror = function() {
@@ -430,7 +430,6 @@ function NfcActivityHandler(activity) {
   var activityName = activity.source.name;
   var data = activity.source.data;
   nfcUI.setActivityData(data);
-
   debug('XX Received Activity: name: ' + activityName);
   switch (activityName) {
   case 'nfc-ndef-discovered':
